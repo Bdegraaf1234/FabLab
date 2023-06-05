@@ -1,0 +1,124 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<ProjectGuid>{01fd09cd-08d3-43c4-a4e8-623ee3e183c3}</ProjectGuid>
+		<OutputType>WinExe</OutputType>
+		<AssemblyTitle>FabLab</AssemblyTitle>
+		<Product>FabLab</Product>
+		<UseWindowsForms>true</UseWindowsForms>
+		<TargetFramework>net4.8</TargetFramework>
+		<Copyright>Copyright ©  2019</Copyright>
+		<!-- project build configurations -->
+		<Configurations>Debug;Release;Local;LocalCi</Configurations>
+		<OutputPath>bin\Local\</OutputPath>
+		
+		<!-- added the following for building on core3.0 see https://github.com/microsoft/msbuild/issues/4704 -->
+		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+
+		<!-- Duplicate .... attribute if not present -->
+		<GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+
+		<!-- auto-versioning -->
+		<Build>$([System.DateTime]::op_Subtraction($([System.DateTime]::get_Now().get_Date()),$([System.DateTime]::new(2020,2,14))).get_TotalDays())</Build>
+		<Revision>$([MSBuild]::Divide($([System.DateTime]::get_Now().get_TimeOfDay().get_TotalSeconds()), 2).ToString('F0'))</Revision>
+		<Version>1.0.$(Build).$(Revision)</Version>
+		<Deterministic>false</Deterministic>
+	</PropertyGroup>
+	<ItemGroup>
+	  <None Remove="Assets\IMGT_NoIsotypes_IGH_probabilitydistribution.csv" />
+	  <None Remove="Assets\IMGT_NoIsotypes_IGK_probabilitydistribution.csv" />
+	  <None Remove="Assets\IMGT_NoIsotypes_IGL_probabilitydistribution.csv" />
+	</ItemGroup>
+	
+	<!-- Licensing Terms -->
+	<ItemGroup>
+		<Content Include="gplv2.txt">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+		<EmbeddedResource Include="Assets\IMGT_NoIsotypes_IGH_probabilitydistribution.csv" />
+		<EmbeddedResource Include="Assets\IMGT_NoIsotypes_IGK_probabilitydistribution.csv" />
+		<EmbeddedResource Include="Assets\IMGT_NoIsotypes_IGL_probabilitydistribution.csv" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include=".editorconfig" />
+		<AdditionalFiles Include="stylecop.json" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- added the following for building on core3.0 see https://github.com/dotnet/msbuild/issues/4704#issuecomment-648974380 -->
+		<!-- HAS TO BE 4.6 -->
+		<PackageReference Include="GenDictEdit" Version="1.1.0" />
+		<PackageReference Include="hecklib.html_generator" Version="0.0.10" />
+		<PackageReference Include="iTextSharp" Version="5.5.13.2" />
+		<PackageReference Include="System.Resources.Extensions" Version="6.0.0" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<Reference Include="System.Deployment" />
+		<Reference Include="System.Design" />
+		<Reference Include="System.Windows.Forms" />
+		<Reference Include="System.Windows.Forms.DataVisualization">
+		  <HintPath>..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\System.Windows.Forms.DataVisualization.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\hecklib-graphics\Source\hecklib-graphics\hecklib-graphics.csproj" />
+		<ProjectReference Include="..\..\hecklib-win32\Source\hecklibWin32\hecklib-win32.csproj" />
+		<ProjectReference Include="..\..\PsrmUtils\Source\PsrmLib\PsrmLib.csproj" />
+	</ItemGroup>
+
+	<!-- Dynamic references: use build configuration to determine if nuget package should be used -->
+	<Choose>
+		<When Condition="'$(Configuration)'=='Local' or '$(Configuration)'=='LocalCi'">
+			<ItemGroup>
+				<!-- <ProjectReference Include="..\..\..\hecklib-core\Source\HeckLib\HeckLib.csproj" /> -->
+			</ItemGroup>
+		</When>
+		<Otherwise>
+			<ItemGroup>
+				<!-- <PackageReference Include="hecklib.core" Version="2.5.*" /> -->
+			</ItemGroup>
+		</Otherwise>
+	</Choose>
+	
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+			<SubType>Designer</SubType>
+		</EmbeddedResource>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+		</Compile>
+		<None Include="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+		<Compile Update="Properties\Settings.Designer.cs">
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+		</Compile>
+	</ItemGroup>
+	
+	<ItemGroup>
+		<Compile Update="**\*.Designer.cs">
+			<DependentUpon>$([System.String]::Copy("%(Filename)").Replace(".Designer","")).cs</DependentUpon>
+			<SubType>Form</SubType>
+		</Compile>
+		<Compile Update="**\*.resx">
+			<DependentUpon>$([System.String]::Copy("%(Filename)").Replace(".resx",".cs")).cs</DependentUpon>
+		</Compile>
+	</ItemGroup>
+	
+	<ItemGroup>
+	  <Compile Update="FabLabForm.Designer.cs">
+	    <DependentUpon>FabLabForm.cs</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+	
+	
+	
+</Project>
