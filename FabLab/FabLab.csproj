@@ -8,6 +8,7 @@
 		<TargetFramework>net4.8</TargetFramework>
 		<Copyright>Copyright ©  2023</Copyright>
 		<Configurations>Debug;Release;Local</Configurations>
+		<ApplicationIcon>icon_fablab.ico</ApplicationIcon>
 
 		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
 
@@ -16,13 +17,7 @@
 		<Version>0.1</Version>
 		<Deterministic>false</Deterministic>
 	</PropertyGroup>
-	<ItemGroup>
-		<None Remove="Assets\IMGT_NoIsotypes_IGH_probabilitydistribution.csv" />
-		<None Remove="Assets\IMGT_NoIsotypes_IGK_probabilitydistribution.csv" />
-		<None Remove="Assets\IMGT_NoIsotypes_IGL_probabilitydistribution.csv" />
-	</ItemGroup>
-
-	<!-- Licensing Terms -->
+	
 	<ItemGroup>
 		<Content Include="gplv2.txt">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -58,65 +53,15 @@
 				<ProjectReference Include="..\..\hecklib-graphics\Source\hecklib-graphics\hecklib-graphics.csproj" />
 				<ProjectReference Include="..\..\hecklib-win32\Source\hecklibWin32\hecklib-win32.csproj" />
 				<ProjectReference Include="..\..\PsrmUtils\Source\PsrmLib\PsrmLib.csproj" />
-				<PackageReference Include="hecklib.html_generator" Version="0.*"/>
+				<PackageReference Include="hecklib.html_generator" Version="0.*" />
 			</ItemGroup>
 		</When>
 		<Otherwise>
+			<PropertyGroup>
+				<RestoreSources>$(ProjectDir)dll\</RestoreSources>
+			</PropertyGroup>
 			<ItemGroup>
-				<Reference Include="Bio.Core.dll">
-					<HintPath>..\dll\Bio.Core.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-core">
-					<HintPath>..\dll\hecklib-core.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-database">
-					<HintPath>..\dll\hecklib-database.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-denovo">
-					<HintPath>..\dll\hecklib-denovo.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-graphics">
-					<HintPath>..\dll\hecklib-graphics.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-precalc">
-					<HintPath>..\dll\hecklib-precalc.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-rawfiles">
-					<HintPath>..\dll\hecklib-rawfiles.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-rawfiles-mgf">
-					<HintPath>..\dll\hecklib-rawfiles-mgf.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-rawfiles-thermo">
-					<HintPath>..\dll\hecklib-rawfiles-thermo.dll</HintPath>
-				</Reference>
-				<Reference Include="hecklib-win32">
-					<HintPath>..\dll\hecklib-win32.dll</HintPath>
-				</Reference>
-				<Reference Include="html_generator">
-					<HintPath>..\dll\html_generator.dll</HintPath>
-				</Reference>
-				<Reference Include="ImgtFilterLib">
-				  <HintPath>..\dll\ImgtFilterLib.dll</HintPath>
-				</Reference>		  			  	
-				<Reference Include="ThermoFisher.CommonCore.BackgroundSubtraction">
-				  <HintPath>..\dll\ThermoFisher.CommonCore.BackgroundSubtraction.dll</HintPath>
-				</Reference>
-				<Reference Include="ThermoFisher.CommonCore.Data">
-				  <HintPath>..\dll\ThermoFisher.CommonCore.Data.dll</HintPath>
-				</Reference>
-				<Reference Include="ThermoFisher.CommonCore.MassPrecisionEstimator">
-				  <HintPath>..\dll\ThermoFisher.CommonCore.MassPrecisionEstimator.dll</HintPath>
-				</Reference>
-				<Reference Include="ThermoFisher.CommonCore.RawFileReader">
-				  <HintPath>..\dll\ThermoFisher.CommonCore.RawFileReader.dll</HintPath>
-				</Reference>
-				<Reference Include="PsrmLib">
-				  <HintPath>..\dll\PsrmLib.dll</HintPath>
-				</Reference>
-				<Reference Include="ObjectListView">
-				  <HintPath>..\dll\ObjectListView.dll</HintPath>
-				</Reference>
+				<PackageReference Include="dependencies" Version="1.8"/>
 			</ItemGroup>
 		</Otherwise>
 	</Choose>
@@ -157,7 +102,5 @@
 			<DependentUpon>FabLabForm.cs</DependentUpon>
 		</Compile>
 	</ItemGroup>
-
-
-
+	
 </Project>

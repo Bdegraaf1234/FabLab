@@ -1,9 +1,0 @@
-{
-"Name": "mixed monoclonals selected_frs (stage 2)",
-"Locus": 0,
-"TemplatePath": "evidence\\germline_templates.fasta",
-"ContaminantsPath": "evidence\\contaminant_chains.fasta",
-"PeaksPath": "evidence\\de_novo_reads.csv",
-"SpectrumPath": "evidence\\md_spectrum.mgf",
-"ContigPath": "selected_frs.proforma"
-}
