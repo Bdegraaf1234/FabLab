@@ -51,64 +51,76 @@
 			<HintPath>..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\System.Windows.Forms.DataVisualization.dll</HintPath>
 		</Reference>
 	</ItemGroup>
-	
-	<ItemGroup>
-		<Reference Include="Bio.Core.dll">
-			<HintPath>..\dll\Bio.Core.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-core">
-			<HintPath>..\dll\hecklib-core.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-database">
-			<HintPath>..\dll\hecklib-database.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-denovo">
-			<HintPath>..\dll\hecklib-denovo.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-graphics">
-			<HintPath>..\dll\hecklib-graphics.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-precalc">
-			<HintPath>..\dll\hecklib-precalc.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-rawfiles">
-			<HintPath>..\dll\hecklib-rawfiles.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-rawfiles-mgf">
-			<HintPath>..\dll\hecklib-rawfiles-mgf.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-rawfiles-thermo">
-			<HintPath>..\dll\hecklib-rawfiles-thermo.dll</HintPath>
-		</Reference>
-		<Reference Include="hecklib-win32">
-			<HintPath>..\dll\hecklib-win32.dll</HintPath>
-		</Reference>
-		<Reference Include="html_generator">
-			<HintPath>..\dll\html_generator.dll</HintPath>
-		</Reference>
-		<Reference Include="ImgtFilterLib">
-			<HintPath>..\dll\ImgtFilterLib.dll</HintPath>
-		</Reference>		  			  	
-		<Reference Include="ThermoFisher.CommonCore.BackgroundSubtraction">
-			<HintPath>..\dll\ThermoFisher.CommonCore.BackgroundSubtraction.dll</HintPath>
-		</Reference>
-		<Reference Include="ThermoFisher.CommonCore.Data">
-			<HintPath>..\dll\ThermoFisher.CommonCore.Data.dll</HintPath>
-		</Reference>
-		<Reference Include="ThermoFisher.CommonCore.MassPrecisionEstimator">
-			<HintPath>..\dll\ThermoFisher.CommonCore.MassPrecisionEstimator.dll</HintPath>
-		</Reference>
-		<Reference Include="ThermoFisher.CommonCore.RawFileReader">
-			<HintPath>..\dll\ThermoFisher.CommonCore.RawFileReader.dll</HintPath>
-		</Reference>
-		<Reference Include="PsrmLib">
-			<HintPath>..\dll\PsrmLib.dll</HintPath>
-		</Reference>
-		<Reference Include="ObjectListView">
-			<HintPath>..\dll\ObjectListView.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-		
+
+	<Choose>
+		<When Condition="'$(Configuration)'=='Local' or '$(Configuration)'=='LocalCi'">
+			<ItemGroup>
+				<ProjectReference Include="..\..\hecklib-graphics\Source\hecklib-graphics\hecklib-graphics.csproj" />
+				<ProjectReference Include="..\..\hecklib-win32\Source\hecklibWin32\hecklib-win32.csproj" />
+				<ProjectReference Include="..\..\PsrmUtils\Source\PsrmLib\PsrmLib.csproj" />
+				<PackageReference Include="hecklib.html_generator" Version="0.*"/>
+			</ItemGroup>
+		</When>
+		<Otherwise>
+			<ItemGroup>
+				<Reference Include="Bio.Core.dll">
+					<HintPath>..\dll\Bio.Core.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-core">
+					<HintPath>..\dll\hecklib-core.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-database">
+					<HintPath>..\dll\hecklib-database.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-denovo">
+					<HintPath>..\dll\hecklib-denovo.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-graphics">
+					<HintPath>..\dll\hecklib-graphics.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-precalc">
+					<HintPath>..\dll\hecklib-precalc.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-rawfiles">
+					<HintPath>..\dll\hecklib-rawfiles.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-rawfiles-mgf">
+					<HintPath>..\dll\hecklib-rawfiles-mgf.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-rawfiles-thermo">
+					<HintPath>..\dll\hecklib-rawfiles-thermo.dll</HintPath>
+				</Reference>
+				<Reference Include="hecklib-win32">
+					<HintPath>..\dll\hecklib-win32.dll</HintPath>
+				</Reference>
+				<Reference Include="html_generator">
+					<HintPath>..\dll\html_generator.dll</HintPath>
+				</Reference>
+				<Reference Include="ImgtFilterLib">
+				  <HintPath>..\dll\ImgtFilterLib.dll</HintPath>
+				</Reference>		  			  	
+				<Reference Include="ThermoFisher.CommonCore.BackgroundSubtraction">
+				  <HintPath>..\dll\ThermoFisher.CommonCore.BackgroundSubtraction.dll</HintPath>
+				</Reference>
+				<Reference Include="ThermoFisher.CommonCore.Data">
+				  <HintPath>..\dll\ThermoFisher.CommonCore.Data.dll</HintPath>
+				</Reference>
+				<Reference Include="ThermoFisher.CommonCore.MassPrecisionEstimator">
+				  <HintPath>..\dll\ThermoFisher.CommonCore.MassPrecisionEstimator.dll</HintPath>
+				</Reference>
+				<Reference Include="ThermoFisher.CommonCore.RawFileReader">
+				  <HintPath>..\dll\ThermoFisher.CommonCore.RawFileReader.dll</HintPath>
+				</Reference>
+				<Reference Include="PsrmLib">
+				  <HintPath>..\dll\PsrmLib.dll</HintPath>
+				</Reference>
+				<Reference Include="ObjectListView">
+				  <HintPath>..\dll\ObjectListView.dll</HintPath>
+				</Reference>
+			</ItemGroup>
+		</Otherwise>
+	</Choose>
+
 	<ItemGroup>
 		<EmbeddedResource Update="Properties\Resources.resx">
 			<Generator>ResXFileCodeGenerator</Generator>
