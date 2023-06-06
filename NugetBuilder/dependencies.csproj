@@ -24,13 +24,14 @@
 	  <ProjectReference Include="..\..\hecklib-rawfiles\Source\hecklib-rawfiles\hecklib-rawfiles.csproj" />-->
 		<!--<ProjectReference Include="..\..\ImgtFilter2\Source\ImgtFilterLib\ImgtFilterLib.csproj" />-->
 		<!--<ProjectReference Include="..\..\hecklib-win32\lib\PdfSharp.Xps\PdfSharp.Xps.csproj" />-->
-		<ProjectReference Include="..\..\PsrmUtils\Source\PsrmLib\PsrmLib.csproj">
+		<!--<ProjectReference Include="..\..\PsrmUtils\Source\PsrmLib\PsrmLib.csproj">
 		</ProjectReference>
 		<ProjectReference Include="..\..\hecklib-win32\Source\hecklibWin32\hecklib-win32.csproj">
 		</ProjectReference>
 		<ProjectReference Include="..\..\hecklib-graphics\Source\hecklib-graphics\hecklib-graphics.csproj">
 		</ProjectReference>
-		<PackageReference Include="hecklib.html_generator" Version="0.*"></PackageReference>
+		<PackageReference Include="hecklib.html_generator" Version="0.*"></PackageReference>-->
+		<ProjectReference Include="..\FabLab\Fablab.csproj"></ProjectReference>
 	</ItemGroup>
 
 	<Target Name="GetMyPackageFiles">
