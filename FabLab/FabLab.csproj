@@ -58,7 +58,7 @@
 		</When>
 		<Otherwise>
 			<PropertyGroup>
-				<RestoreSources>$(ProjectDir)dll\</RestoreSources>
+				<RestoreSources>$(ProjectDir)..\dll\</RestoreSources>
 			</PropertyGroup>
 			<ItemGroup>
 				<PackageReference Include="dependencies" Version="1.8"/>
