@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "FabLab"
-#define MyAppVersion "0.1"
+#define MyAppVersion "0.5"
 #define MyAppPublisher "Biomolecular Mass Spectrometry and Proteomics group, Utrecht University"
 #define MyAppURL "www.hecklab.com"
 #define MyAppExeName "FabLab.exe"
