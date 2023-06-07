@@ -17,7 +17,7 @@
 		<Version>0.1</Version>
 		<Deterministic>false</Deterministic>
 	</PropertyGroup>
-	
+
 	<ItemGroup>
 		<Content Include="gplv2.txt">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -36,9 +36,8 @@
 		<Reference Include="System.Deployment" />
 		<Reference Include="System.Design" />
 		<Reference Include="System.Windows.Forms" />
-		<Reference Include="System.Windows.Forms.DataVisualization">
-			<HintPath>..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\System.Windows.Forms.DataVisualization.dll</HintPath>
-		</Reference>
+		<Reference Include="System.Windows.Forms.DataVisualization" />
+		<PackageReference Include="System.Resources.Extensions" Version="6.0.0" />
 	</ItemGroup>
 
 	<Choose>
@@ -50,54 +49,24 @@
 				<PackageReference Include="hecklib.html_generator" Version="0.*" />
 				<PackageReference Include="GenDictEdit" Version="1.1.0" />
 				<PackageReference Include="iTextSharp" Version="5.5.13.2" />
-				<PackageReference Include="System.Resources.Extensions" Version="6.0.0" />
 			</ItemGroup>
 		</When>
 		<Otherwise>
 			<PropertyGroup>
-				<RestoreSources>$(ProjectDir)..\dll\</RestoreSources>
+				<RestoreSources>https://api.nuget.org/v3/index.json;$(ProjectDir)..\nuget\</RestoreSources>
 			</PropertyGroup>
 			<ItemGroup>
-				<PackageReference Include="dependencies" Version="1.8"/>
+				<PackageReference Include="dependencies" Version="1.9"/>
 			</ItemGroup>
 		</Otherwise>
 	</Choose>
 
-	<ItemGroup>
-		<EmbeddedResource Update="Properties\Resources.resx">
-			<Generator>ResXFileCodeGenerator</Generator>
-			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
-			<SubType>Designer</SubType>
-		</EmbeddedResource>
-		<Compile Update="Properties\Resources.Designer.cs">
-			<AutoGen>True</AutoGen>
-			<DependentUpon>Resources.resx</DependentUpon>
-		</Compile>
-		<None Include="Properties\Settings.settings">
-			<Generator>SettingsSingleFileGenerator</Generator>
-			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
-		</None>
-		<Compile Update="Properties\Settings.Designer.cs">
-			<AutoGen>True</AutoGen>
-			<DependentUpon>Settings.settings</DependentUpon>
-			<DesignTimeSharedInput>True</DesignTimeSharedInput>
-		</Compile>
-	</ItemGroup>
+	<Target Name="CopyDlls" AfterTargets="Build">
+		<ItemGroup Condition="'$(Configuration)'=='Local' or '$(Configuration)'=='LocalCi'">
+			<ToCopy Include="$(OutputPath)*.dll" Exclude = "$(OutputPath)System.*.dll"/>
+		</ItemGroup>
+		<Copy SourceFiles="@(ToCopy)"
+		  DestinationFolder="$(ProjectDir)..\NugetBuilder\dll" ></Copy>
+	</Target>
 
-	<ItemGroup>
-		<Compile Update="**\*.Designer.cs">
-			<DependentUpon>$([System.String]::Copy("%(Filename)").Replace(".Designer","")).cs</DependentUpon>
-			<SubType>Form</SubType>
-		</Compile>
-		<Compile Update="**\*.resx">
-			<DependentUpon>$([System.String]::Copy("%(Filename)").Replace(".resx",".cs")).cs</DependentUpon>
-		</Compile>
-	</ItemGroup>
-
-	<ItemGroup>
-		<Compile Update="FabLabForm.Designer.cs">
-			<DependentUpon>FabLabForm.cs</DependentUpon>
-		</Compile>
-	</ItemGroup>
-	
 </Project>

@@ -476,3 +476,4 @@ $RECYCLE.BIN/
 *.lnk
 
 launchSettings.json
+/NugetBuilder/dll
