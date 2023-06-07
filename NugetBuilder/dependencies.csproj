@@ -3,7 +3,6 @@
 	<PropertyGroup>
 		<TargetFramework>net48</TargetFramework>
 		<Version>1.9</Version>
-		<ImplicitUsings>enable</ImplicitUsings>
 		<IncludeSymbols>false</IncludeSymbols>
 		<SuppressDependenciesWhenPacking >true</SuppressDependenciesWhenPacking>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
