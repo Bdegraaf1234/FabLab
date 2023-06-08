@@ -2,7 +2,6 @@
 
 	<PropertyGroup>
 		<TargetFramework>net48</TargetFramework>
-		<Version>1.9</Version>
 		<IncludeSymbols>false</IncludeSymbols>
 		<SuppressDependenciesWhenPacking >true</SuppressDependenciesWhenPacking>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -11,6 +10,13 @@
 		<Description>"The bundled dependencies for fablab"</Description>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<RestoreSources>https://bms-developer.science.uu.nl/nexus/repository/nuget-public/</RestoreSources>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Build>$([System.DateTime]::op_Subtraction($([System.DateTime]::get_Now().get_Date()),$([System.DateTime]::new(2023,6,8))).get_TotalDays())</Build>
+		<Revision>$([MSBuild]::Divide($([System.DateTime]::get_Now().get_TimeOfDay().get_TotalMinutes()), 2).ToString('F0'))</Revision>
+		<Version>0.0.$(Build).$(Revision)</Version>
+		<Deterministic>false</Deterministic>
 	</PropertyGroup>
 
 	<Target Name="GetMyPackageFiles">
