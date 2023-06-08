@@ -5,6 +5,7 @@ using HeckLib.masspec;
 using HeckLib.objectlistview;
 using HeckLib.utils;
 using HeckLib.visualization.objectlistview;
+using ImgtFilterLib;
 using PsrmLib;
 using PsrmLib.IO;
 using PsrmLib.Models;
@@ -17,13 +18,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static HeckLib.masspec.SpectrumUtils;
 
-namespace FabLab.Helpers
+namespace FabLab
 {
     public class Helpers
     {
-        private static Dictionary<double[], List<double>> SortedPerInput = new Dictionary<double[], List<double>>();
+        private static readonly Dictionary<double[], List<double>> SortedPerInput = new Dictionary<double[], List<double>>();
 
         public static HecklibOLVColumn CreateColumn(ObjectListView listview, string title, HorizontalAlignment halign, AspectGetterDelegate function, IEnumerable<object> objectsToBe, bool sortable = false, CustomFilterMenuBuilder customFilterMenuBuilder = null)
         {
@@ -64,100 +64,90 @@ namespace FabLab.Helpers
         /// <param name="source"></param>
         /// <returns></returns>
         public static RankedContig[] Rank((Peptide, double[])[] contigs, Document doc, SequenceSource source, RegionType region)
-        {
-            var res = new ConcurrentBag<RankedContig>();
-
-            string csvPath = Document.IgHProbabilityDistributionPath;
-            switch (doc.Locus)
-            {
-                case ImgtFilterLib.LociEnum.Kappa:
-                    csvPath = Document.IgKProbabilityDistributionPath;
-                    break;
-                case ImgtFilterLib.LociEnum.Lambda:
-                    csvPath = Document.IgLProbabilityDistributionPath;
-                    break;
-                case ImgtFilterLib.LociEnum.Heavy:
-                    break;
-                case ImgtFilterLib.LociEnum.TBD:
-                    break;
-                default:
-                    break;
-            }
-
-			List<(double number, List<(char residue, int count)> frequencies)> distribution = doc.Consensus ?? ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
-
-            List<(double number, List<(char residue, int count)>)> templateDistribution = ReadFilter.GetConsensusFromReads(doc.NumberedTemplates).ToList();
-
-            Parallel.ForEach(contigs, contig =>
-            {
-                RankedContig con = new RankedContig();
-                con.contig = contig.Item1;
-                con.numbering = contig.Item2;
-                con.conservedness = ExtenderBase<int>.Scoring.GetConservednessSupportScore((contig.Item1.Sequence, contig.Item2), csvPath);
-                con.peaks = ExtenderBase<int>.Scoring.GetPEAKSSupportScore((contig.Item1.Sequence, contig.Item2), distribution);
-                con.template = ExtenderBase<int>.Scoring.GetTemplateSupport((contig.Item1.Sequence, contig.Item2), templateDistribution).Sum();
-
-                var asm = new AnnotatedSpectrumMatch(doc.Spectrum, contig.Item1, doc.ScoringModel);
-                con.spectrum = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
-                con.origin = source;
-
-                con.multi = 0;
-                con.multiR = 0;
-
-                res.Add(con);
-            }
-            );
-
-            var resArray = res.ToArray();
-
-            if (doc.CurrentSettings.UseMultiScore)
-                resArray = GetMultiScore(doc, null, res);
-            var varsToOrderOn = doc.CurrentSettings.OrderingVars[region];
-            if (varsToOrderOn.Contains(5) && !doc.CurrentSettings.UseMultiScore)
-            {
-                var l = varsToOrderOn.ToList();
-                l.Add(1);
-                varsToOrderOn = l.ToArray();
-            }
-
-            return Document.Reorder(resArray, varsToOrderOn);
-        }
-
-        /// <summary>
-        /// account for the weights given in settings, because we cannot do so through the front end. no support for spectral score so far, and integrated support for conservedness so we do not acount for it
-        /// </summary>
-        /// <param name="contigs"></param>
-        /// <param name="spectrum"></param>
-        /// <param name="reads"></param>
-        /// <param name="templates"></param>
-        /// <param name="source"></param>
-        /// <returns></returns>
-        public static RankedContig[] RankFullLength((Peptide, double[])[] contigs, SequenceSource source, Document doc, ImgtFilterLib.LociEnum locus = ImgtFilterLib.LociEnum.Kappa, int[] multiScoreRange = null)
 		{
 			var res = new ConcurrentBag<RankedContig>();
 
-			string csvPath = Document.IgHProbabilityDistributionPath;
-			switch (locus)
+			string csvPath = GetProbabilityDistribution(doc.Locus);
+
+			List<(double number, List<(char residue, int count)> frequencies)> distribution = doc.Consensus ?? ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
+
+			List<(double number, List<(char residue, int count)>)> templateDistribution = ReadFilter.GetConsensusFromReads(doc.NumberedTemplates).ToList();
+
+			Parallel.ForEach(contigs, contig =>
 			{
-				case ImgtFilterLib.LociEnum.Kappa:
-					csvPath = Document.IgKProbabilityDistributionPath;
-					break;
-				case ImgtFilterLib.LociEnum.Lambda:
-					csvPath = Document.IgHProbabilityDistributionPath;
-					break;
-				case ImgtFilterLib.LociEnum.Heavy:
-					break;
-				case ImgtFilterLib.LociEnum.TBD:
-					break;
-				default:
-					break;
+				RankedContig con = new RankedContig
+				{
+					contig = contig.Item1,
+					numbering = contig.Item2,
+					conservedness = ExtenderBase<int>.Scoring.GetConservednessSupportScore((contig.Item1.Sequence, contig.Item2), csvPath),
+					peaks = ExtenderBase<int>.Scoring.GetPEAKSSupportScore((contig.Item1.Sequence, contig.Item2), distribution),
+					template = ExtenderBase<int>.Scoring.GetTemplateSupport((contig.Item1.Sequence, contig.Item2), templateDistribution).Sum()
+				};
+
+				var asm = new AnnotatedSpectrumMatch(doc.Spectrum, contig.Item1, doc.ScoringModel);
+				con.spectrum = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
+				con.origin = source;
+
+				con.multi = 0;
+				con.multiR = 0;
+
+				res.Add(con);
+			}
+			);
+
+			var resArray = res.ToArray();
+
+			if (doc.CurrentSettings.UseMultiScore)
+				resArray = GetMultiScore(doc, null, res);
+			var varsToOrderOn = doc.CurrentSettings.OrderingVars[region];
+			if (varsToOrderOn.Contains(5) && !doc.CurrentSettings.UseMultiScore)
+			{
+				var l = varsToOrderOn.ToList();
+				l.Add(1);
+				varsToOrderOn = l.ToArray();
 			}
 
-			var distribution = ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
+			return Document.Reorder(resArray, varsToOrderOn);
+		}
+
+		internal static string GetProbabilityDistribution(LociEnum locusEnum)
+		{
+			switch (locusEnum)
+			{
+				case LociEnum.Kappa:
+					return Document.IgKProbabilityDistributionPath;
+				case LociEnum.Lambda:
+                    return Document.IgLProbabilityDistributionPath;
+				case LociEnum.Heavy:
+                    return Document.IgHProbabilityDistributionPath;
+				case LociEnum.TBD:
+                    throw new Exception($"Incorrect Locus provided: {Enum.GetName(typeof(LociEnum), locusEnum)}");
+				default:
+                    throw new Exception($"Incorrect Locus provided: {Enum.GetName(typeof(LociEnum), locusEnum)}");
+			}
+		}
+
+		/// <summary>
+		/// account for the weights given in settings, because we cannot do so through the front end. no support for spectral score so far, and integrated support for conservedness so we do not acount for it
+		/// </summary>
+		/// <param name="contigs"></param>
+		/// <param name="spectrum"></param>
+		/// <param name="reads"></param>
+		/// <param name="templates"></param>
+		/// <param name="source"></param>
+		/// <returns></returns>
+		public static RankedContig[] RankFullLength((Peptide, double[])[] contigs, SequenceSource source, Document doc, ImgtFilterLib.LociEnum locus = LociEnum.Kappa, int[] multiScoreRange = null)
+		{
+			var res = new ConcurrentBag<RankedContig>();
+
+            string csvPath = GetProbabilityDistribution(doc.Locus);
+
+
+            var distribution = ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
 			List<(double number, List<(char residue, int count)>)> templateDistribution = ReadFilter.GetConsensusFromReads(doc.NumberedTemplates.Select(x => (x.read.Sequence, x.numbering)).ToList());
 
 			// we remove the support from regions where it should not be accounted for in the score.
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+			foreach (var region in GetAllRegionEnums())
 			{
 				RegionType curRegion = (RegionType)region;
 				if (curRegion == RegionType.None)
@@ -216,12 +206,14 @@ namespace FabLab.Helpers
 					}
 				}
 
-				RankedContig con = new RankedContig();
-				con.contig = contig.Item1;
-				con.numbering = contig.Item2;
-				con.conservedness = ExtenderBase<int>.Scoring.GetConservednessSupportScore((contig.Item1.Sequence, contig.Item2), csvPath);
-				con.peaks = ExtenderBase<int>.Scoring.GetPEAKSSupportScore((contig.Item1.Sequence, contig.Item2), consensus);
-				con.template = ExtenderBase<int>.Scoring.GetTemplateSupport((contig.Item1.Sequence, contig.Item2), templateDistribution).Sum();
+				RankedContig con = new RankedContig
+				{
+					contig = contig.Item1,
+					numbering = contig.Item2,
+					conservedness = ExtenderBase<int>.Scoring.GetConservednessSupportScore((contig.Item1.Sequence, contig.Item2), csvPath),
+					peaks = ExtenderBase<int>.Scoring.GetPEAKSSupportScore((contig.Item1.Sequence, contig.Item2), consensus),
+					template = ExtenderBase<int>.Scoring.GetTemplateSupport((contig.Item1.Sequence, contig.Item2), templateDistribution).Sum()
+				};
 
 				var asm = new AnnotatedSpectrumMatch(doc.Spectrum, contig.Item1, doc.ScoringModel);
 				con.spectrum = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
@@ -357,7 +349,6 @@ namespace FabLab.Helpers
 					};
 				}
 
-				var containsKey = false;
 				var key = seq.Replace('I', 'L')
 				//.Replace("Q", "K")
 				;
@@ -415,7 +406,6 @@ namespace FabLab.Helpers
 
 		private static void ClipIdentical(Document doc, ConcurrentBag<string> keyBag)
 		{
-
 			//select start and end
 			int startIdx = 0;
 			var coverages = keyBag.Distinct().Select(x => doc.MultiScores[x]).ToArray();
@@ -522,17 +512,17 @@ namespace FabLab.Helpers
                 List<(PeaksPeptideData pep, Peptide, double)> leftExtensions,
                 List<(PeaksPeptideData pep, Peptide, double)> rightExtensions)[] gapFillers = tagsWithGaps.Select(tagsWithGap =>
                 {
-                    var first = tagsWithGap.first;
+                    var (tag, nDiff) = tagsWithGap.first;
                     var second = tagsWithGap.second;
                     double diff = tagsWithGap.Item3;
 
-                    string firstSeq = first.tag.Sequence.Substring(first.tag.Sequence.Length - 3)//.Replace("Q", "K")
+                    string firstSeq = tag.Sequence.Substring(tag.Sequence.Length - 3)//.Replace("Q", "K")
                     ;
                     string secondSeq = second.tag.Sequence.Substring(0, 3)
                     //.Replace("Q", "K")
                     ;
 
-                    string firstSeqOg = first.tag.Sequence.Substring(first.tag.Sequence.Length - 3);
+                    string firstSeqOg = tag.Sequence.Substring(tag.Sequence.Length - 3);
                     string secondSeqOg = second.tag.Sequence.Substring(0, 3);
 
                     List<PeaksPeptideData> containsBoth = new List<PeaksPeptideData>();
@@ -640,7 +630,7 @@ namespace FabLab.Helpers
                 foreach (char aa in innerSeq)
                 {
                     //check if the mass of the next extension makes the diff smaller
-                    mass += HeckLib.chemistry.AminoAcid.Get(aa).MonoIsotopicWeight;
+                    mass += AminoAcid.Get(aa).MonoIsotopicWeight;
                     double nextDiff = mass - diff;
                     if (Math.Abs(nextDiff) > Math.Abs(currDiff))
                         break;
@@ -659,10 +649,10 @@ namespace FabLab.Helpers
             // make the first peptide
             var outList = new List<Peptide>();
 
-            foreach (var item in gapfillers)
+            foreach (var (tagsWithGap, gapFillingPeptides, leftExtensions, rightExtensions) in gapfillers)
 			{
-                (Peptide tag, double nDiff) first = item.tagsWithGap.first;
-                (Peptide tag, double nDiff) second = item.tagsWithGap.second;
+                (Peptide tag, double nDiff) first = tagsWithGap.first;
+                (Peptide tag, double nDiff) second = tagsWithGap.second;
 
                 string firstSeq = first.tag.Sequence.Substring(first.tag.Sequence.Length - 3)
                     //.Replace("Q", "K")
@@ -674,21 +664,21 @@ namespace FabLab.Helpers
                 string firstSeqOg = first.tag.Sequence.Substring(first.tag.Sequence.Length - 3);
                 string secondSeqOg = second.tag.Sequence.Substring(0, 3);
 
-                double diff = item.tagsWithGap.Item3;
+                double diff = tagsWithGap.Item3;
 
-                var matchingReads = item.gapFillingPeptides;
+                var matchingReads = gapFillingPeptides;
                 var uniqueMatchingReads = matchingReads.GroupBy(x => x.Item2.Sequence).Select(x => x.First()).ToList();
-                var toLeftExtensions = item.leftExtensions;
-                var toRightExtensions = item.rightExtensions;
+                var toLeftExtensions = leftExtensions;
+                var toRightExtensions = rightExtensions;
                 var rhsExtensions = toLeftExtensions.GroupBy(x => x.Item2.Sequence).Select(x => x.First()).ToList();
                 var lhsExtensions = toRightExtensions.GroupBy(x => x.Item2.Sequence).Select(x => x.First()).ToList();
 
                 // First we check to see if there are gapfillers that fill the gap within 0.5 Da
-                var ans = FindMassMatchingGapFillers(innerTol, first, second, diff, uniqueMatchingReads).Select(x => new Peptide(x.filler)).ToList();
+                var ans = FindMassMatchingGapFillers(innerTol, diff, uniqueMatchingReads).Select(x => new Peptide(x.filler)).ToList();
 
                 // we also check if any peptides were gapfillers despite not including one of the flanks
-                ans.AddRange(FindMassMatchingGapFillers(innerTol, first, second, diff, rhsExtensions).Select(x => new Peptide(x.filler)).ToList());
-                ans.AddRange(FindMassMatchingGapFillers(innerTol, first, second, diff, lhsExtensions).Select(x => new Peptide(x.filler)).ToList());
+                ans.AddRange(FindMassMatchingGapFillers(innerTol, diff, rhsExtensions).Select(x => new Peptide(x.filler)).ToList());
+                ans.AddRange(FindMassMatchingGapFillers(innerTol, diff, lhsExtensions).Select(x => new Peptide(x.filler)).ToList());
 				
                 // gettwopartgapfiller returns a dictionary with the evidence for the rhs, and the extensions. so we have to recombine. This may be pretty excessive...
                 ans.AddRange(GetTwoPartGapFillers(innerTol, first, second, diff, lhsExtensions, rhsExtensions).SelectMany(lhsAndExtensions => lhsAndExtensions.Value.Select(combo => new Peptide(lhsAndExtensions.Key + combo.rhsExtension))).GroupBy(x => x.Sequence).Select(x => x.First()));
@@ -697,7 +687,7 @@ namespace FabLab.Helpers
                 {
                     // the total should be the same as waterless, monoisotopic precursor
 
-                    var precursorMass = HeckLib.chemistry.Proteomics.ConvertAverageMassToMonoIsotopic(spectrum.PrecursorMass, true) - MassSpectrometry.MassWater;
+                    var precursorMass = Proteomics.ConvertAverageMassToMonoIsotopic(spectrum.PrecursorMass, true) - MassSpectrometry.MassWater;
 
                     var n = Modification.CreateOffsetMod(0, first.tag.Nterm.Delta + first.tag.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum(), Modification.PositionType.anyNterm, Modification.TerminusType.nterm);
                     var c = Modification.CreateOffsetMod(0, precursorMass - (first.tag.Nterm.Delta + first.tag.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum() + x.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum()), Modification.PositionType.anyCterm, Modification.TerminusType.cterm);
@@ -722,7 +712,7 @@ namespace FabLab.Helpers
 				{
 					//check if the mass of the next extension makes the diff lower than 0
                     // if abs nextdiff is rising, we have gone below zero and further away. if we go below zero but by less than the current diff, we accept
-					massExtension += HeckLib.chemistry.AminoAcid.Get(aa).MonoIsotopicWeight;
+					massExtension += AminoAcid.Get(aa).MonoIsotopicWeight;
 					double nextDiff = diff - massExtension;
 					if (Math.Abs(nextDiff) > Math.Abs(currDiff))
 						break;
@@ -759,7 +749,7 @@ namespace FabLab.Helpers
 					for (int i = 1; i <= lhs.extension.Length; i++)
 					{
                         // the left hand part of the sequence is shortened by 1 residue every loop
-						string lhsInnerSeq = lhs.Item2.Sequence.Substring(0, i);
+						string lhsInnerSeq = lhs.extension.Sequence.Substring(0, i);
 
 						var leftMass = lhsInnerSeq.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum();
 						var remainingDiff = diff - leftMass;
@@ -788,7 +778,7 @@ namespace FabLab.Helpers
 			}
 		}
 
-        private static (string filler, IEnumerable<(PeaksPeptideData pep, Peptide, double diff)>)[] FindMassMatchingGapFillers(Tolerance innerTol, (Peptide tag, double nDiff) first, (Peptide tag, double nDiff) second, double diff, List<(PeaksPeptideData pep, Peptide, double)> matchingReads)
+        private static (string filler, IEnumerable<(PeaksPeptideData pep, Peptide, double diff)>)[] FindMassMatchingGapFillers(Tolerance innerTol, double diff, List<(PeaksPeptideData pep, Peptide, double)> matchingReads)
 		{
 			IEnumerable<(double, (PeaksPeptideData pep, Peptide, double) x)> diffs = matchingReads.Select(x => (x.Item2.MonoIsotopicMass - MassSpectrometry.MassWater, x)).Where(x => x.x.Item2.Sequence != string.Empty);
 
@@ -856,72 +846,38 @@ namespace FabLab.Helpers
             }
         }
 
-        public static ImgtFilterLib.LociEnum GetLocusEnum(string name)
+        public static LociEnum GetLocusEnum(string name)
         {
             string chainName = GetChainName(name);
 
             if (chainName == "H")
             {
-                return ImgtFilterLib.LociEnum.Heavy;
+                return LociEnum.Heavy;
             }
             else if (chainName == "L")
             {
-                return ImgtFilterLib.LociEnum.Lambda;
+                return LociEnum.Lambda;
             }
             else if (chainName == "K")
             {
-                return ImgtFilterLib.LociEnum.Kappa;
+                return LociEnum.Kappa;
             }
             else 
-                return ImgtFilterLib.LociEnum.TBD;
-        }
-
-        /// <summary>
-        /// not super elegant but should do the trick. Set any gap in cdr to the middle.
-        /// </summary>
-        /// <param name="region"></param>
-        /// <param name="sequence"></param>
-        /// <returns></returns>
-        public static double[] NumberCdr(RegionType region, string sequence)
-        {
-			switch (region)
-			{
-				case RegionType.FR1:
-                    return ImgtNumberer.NumberCdr(PsrmLib.Processing.RegionType.FR1, sequence);
-					break;
-				case RegionType.CDR1:
-                    return ImgtNumberer.NumberCdr(PsrmLib.Processing.RegionType.CDR1, sequence);
-                    break;
-				case RegionType.FR2:
-                    return ImgtNumberer.NumberCdr(PsrmLib.Processing.RegionType.FR2, sequence);
-                    break;
-				case RegionType.CDR2:
-                    return ImgtNumberer.NumberCdr(PsrmLib.Processing.RegionType.CDR2, sequence);
-                    break;
-				case RegionType.FR3:
-                    return ImgtNumberer.NumberCdr(PsrmLib.Processing.RegionType.FR3, sequence);
-                    break;
-				case RegionType.CDR3:
-                    return ImgtNumberer.NumberCdr(PsrmLib.Processing.RegionType.CDR3, sequence);
-                    break;
-				case RegionType.FR4:
-                    return ImgtNumberer.NumberCdr(PsrmLib.Processing.RegionType.FR4, sequence);
-                    break;
-				case RegionType.None:
-             
-					break;
-				default:
-					break;
-			}
-            throw new Exception("No region provided");
+                return LociEnum.TBD;
         }
 
         public static string GetChainName(string name)
         {
-            return Regex.Replace(Regex.Replace(name, ".*_IG", ""), "[CVDJG].*\\*[0-9]+.*", "");
+            return Regex.Replace(Regex.Replace(name, ".*_IG", ""), "[CVDJGA].*\\*[0-9]+.*", "");
         }
 
-        public static string GetSequence(string seq, double[] innerNumbering, ImgtFilterLib.Enums.RegionEnum type, ImgtFilterLib.LociEnum chain, out double[] numbering)
+        internal static IEnumerable<RegionType> GetAllRegionEnums()
+        {
+            return Enum.GetValues(
+                typeof(RegionType)).Cast<RegionType>().Where(x => x != RegionType.None);
+        }
+
+        public static string GetSequence(string seq, double[] innerNumbering, ImgtFilterLib.Enums.RegionEnum type, LociEnum chain, out double[] numbering)
         {
             (double, double) borders = GetBorders(type, chain);
             double startImgt = borders.Item1;
@@ -976,13 +932,13 @@ namespace FabLab.Helpers
         {
             switch (chain)
             {
-                case ImgtFilterLib.LociEnum.Kappa:
+                case LociEnum.Kappa:
                     return GetBorders(type, ImgtFilterLib.Enums.AbType.Light);
-                case ImgtFilterLib.LociEnum.Lambda:
+                case LociEnum.Lambda:
                     return GetBorders(type, ImgtFilterLib.Enums.AbType.Light);
-                case ImgtFilterLib.LociEnum.Heavy:
+                case LociEnum.Heavy:
                     return GetBorders(type, ImgtFilterLib.Enums.AbType.Heavy);
-                case ImgtFilterLib.LociEnum.TBD:
+                case LociEnum.TBD:
                     throw new NotImplementedException();
                 default:
                     throw new NotImplementedException();

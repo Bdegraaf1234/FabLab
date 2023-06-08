@@ -17,6 +17,7 @@
 // </copyright>
 
 using System;
+using System.Globalization;
 using System.Windows.Forms;
 
 namespace FabLab
@@ -32,6 +33,9 @@ namespace FabLab
         [STAThread]
         private static void Main(string[] args)
         {
+            // Needed for correct double parsing
+            CultureInfo.CurrentCulture = new CultureInfo("en-GB");
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 			try

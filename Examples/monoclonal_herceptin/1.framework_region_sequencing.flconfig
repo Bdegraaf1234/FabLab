@@ -1,6 +1,5 @@
 {
 "Name": "monoclonal hercepting fr_sequencing (stage 1)",
-"Locus": 0,
 "TemplatePath": "evidence\\germline_templates.fasta",
 "ContaminantsPath": "evidence\\contaminant_chains.fasta",
 "PeaksPath": "evidence\\de_novo_reads.csv",

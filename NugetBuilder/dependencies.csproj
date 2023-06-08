@@ -2,43 +2,32 @@
 
 	<PropertyGroup>
 		<TargetFramework>net48</TargetFramework>
-		<Version>1.8</Version>
-		<ImplicitUsings>enable</ImplicitUsings>
 		<IncludeSymbols>false</IncludeSymbols>
-		<SuppressDependenciesWhenPacking >true</SuppressDependenciesWhenPacking>
+		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Configurations>Debug;Release;Local;LocalCi</Configurations>
-		<PackageOutputPath>$(ProjectDir)..\dll</PackageOutputPath>
+		<PackageOutputPath>$(ProjectDir)..\nuget</PackageOutputPath>
 		<Description>"The bundled dependencies for fablab"</Description>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<RestoreSources>https://bms-developer.science.uu.nl/nexus/repository/nuget-public/</RestoreSources>
 	</PropertyGroup>
 
-	<ItemGroup>
-		<!--<ProjectReference Include="..\..\biocore\Source\Bio.Core\Bio.Core.csproj" />-->
-		<!--<ProjectReference Include="..\..\hecklib-core\Source\HeckLib\HeckLib.csproj" />-->
-		<!--<ProjectReference Include="..\..\hecklib-database\Source\hecklib-database\hecklib-database.csproj" />-->
-		<!--<ProjectReference Include="..\..\hecklib-precalc\Source\hecklib-precalc\hecklib-precalc.csproj" />-->
-		<!--<ProjectReference Include="..\..\hecklib-rawfiles\Source\hecklib-rawfiles-mgf\hecklib-rawfiles-mgf.csproj" />
-	  <ProjectReference Include="..\..\hecklib-rawfiles\Source\hecklib-rawfiles-thermo\hecklib-rawfiles-thermo.csproj" />
-	  <ProjectReference Include="..\..\hecklib-rawfiles\Source\hecklib-rawfiles\hecklib-rawfiles.csproj" />-->
-		<!--<ProjectReference Include="..\..\ImgtFilter2\Source\ImgtFilterLib\ImgtFilterLib.csproj" />-->
-		<!--<ProjectReference Include="..\..\hecklib-win32\lib\PdfSharp.Xps\PdfSharp.Xps.csproj" />-->
-		<ProjectReference Include="..\..\PsrmUtils\Source\PsrmLib\PsrmLib.csproj">
-		</ProjectReference>
-		<ProjectReference Include="..\..\hecklib-win32\Source\hecklibWin32\hecklib-win32.csproj">
-		</ProjectReference>
-		<ProjectReference Include="..\..\hecklib-graphics\Source\hecklib-graphics\hecklib-graphics.csproj">
-		</ProjectReference>
-		<PackageReference Include="hecklib.html_generator" Version="0.*"></PackageReference>
-	</ItemGroup>
+	<PropertyGroup>
+		<Build>$([System.DateTime]::op_Subtraction($([System.DateTime]::get_Now().get_Date()),$([System.DateTime]::new(2023,6,8))).get_TotalDays())</Build>
+		<Revision>$([MSBuild]::Divide($([System.DateTime]::get_Now().get_TimeOfDay().get_TotalMinutes()), 2).ToString('F0'))</Revision>
+		<Version>0.0.$(Build).$(Revision)</Version>
+		<Deterministic>false</Deterministic>
+	</PropertyGroup>
 
 	<Target Name="GetMyPackageFiles">
 		<ItemGroup>
-			<BuildOutputInPackage Include="$(OutputPath)*.dll" />
+			<BuildOutputInPackage Include="$(ProjectDir)dll\*.dll" />
 		</ItemGroup>
 	</Target>
 	<PropertyGroup>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);GetMyPackageFiles</TargetsForTfmSpecificBuildOutput>
 	</PropertyGroup>
+	<ItemGroup>
+	  <None Include="..\.editorconfig" Link=".editorconfig" />
+	</ItemGroup>
 </Project>
