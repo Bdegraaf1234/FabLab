@@ -884,7 +884,15 @@ namespace FabLab
                 Directory.SetCurrentDirectory(input.Root);
             }
 
-            templates = FastaIO.ReadFasta(input.TemplatePath).Select(x => new Peptide(x.Value, x.Key)).ToList();
+			try
+			{
+                templates = FastaIO.ReadFasta(input.TemplatePath).Select(x => new Peptide(x.Value, x.Key)).ToList();
+			}
+			catch (Exception e)
+			{
+
+				throw;
+			}
 			contaminants = FastaIO.ReadFasta(input.ContaminantsPath).Select(x => new Peptide(x.Value, x.Key)).ToList();
 			peaks = CsvFileReader<PeaksPeptideData>.ParseAll(input.PeaksPath);
 			contaminants.AddRange(templates);

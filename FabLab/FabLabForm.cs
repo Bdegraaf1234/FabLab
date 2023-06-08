@@ -611,60 +611,69 @@ namespace FabLab
 			scoreOlv.RebuildColumns();
 		}
 
-		private void AddColumns(RankedContig[] contigs, ObjectListView olv)
+		private void AddColumns(RankedContig[] contigs, ObjectListView olv, bool addNterm = true)
 		{
 			IEnumerable<object> objectsToBe = contigs.Select(x => (object)x);
 			var numInRange = Helpers.OrderImgtNumbering(contigs.Where(x => x.numbering != null).SelectMany(x => x.numbering).ToArray());
-
-			Helpers.CreateColumn(olv, "#", HorizontalAlignment.Right, delegate (Object obj)
+			if (addNterm)
 			{
-				return "";
-			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.CreateColumn(olv, "Nterm", HorizontalAlignment.Right, delegate (Object obj)
-			{
-				var parsed = (RankedContig)obj;
-				if (parsed.contig.Nterm == null)
+				Helpers.CreateColumn(olv, "#", HorizontalAlignment.Right, delegate (Object obj)
+				{
 					return "";
-				else
-					return Math.Round(parsed.contig.Nterm.Delta, 3);
-			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
-			olv.AllColumns.Last().IsVisible = true;
+				}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.CreateColumn(olv, "Sequence", HorizontalAlignment.Left, delegate (Object obj)
-			{
-				var parsed = (RankedContig)obj;
-				var numberedContig = (parsed.contig.Sequence, parsed.numbering);
-				char[] charArray = ConvertToGappedString(numberedContig, numInRange);
-				string sequence = new string(charArray);
+				Helpers.CreateColumn(olv, "Nterm", HorizontalAlignment.Right, delegate (Object obj)
+				{
+					var parsed = (RankedContig)obj;
+					if (parsed.contig.Nterm == null)
+						return "";
+					else
+						return Math.Round(parsed.contig.Nterm.Delta, 3);
+				}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+				olv.AllColumns.Last().IsVisible = true;
+				olv.AllColumns.Last().Sortable = true;
 
-				if (sequence == null)
-					return "Unknown";
-				else
-					return sequence;
-			}, customFilterMenuBuilder: new StringFilterMenuBuilder(), objectsToBe: objectsToBe);
-			olv.AllColumns.Last().FillsFreeSpace = true;
+				Helpers.CreateColumn(olv, "Sequence", HorizontalAlignment.Left, delegate (Object obj)
+				{
+					var parsed = (RankedContig)obj;
+					var numberedContig = (parsed.contig.Sequence, parsed.numbering);
+					char[] charArray = ConvertToGappedString(numberedContig, numInRange);
+					string sequence = new string(charArray);
 
-			olv.AllColumns.Last().TextAlign = HorizontalAlignment.Right;
-			Helpers.CreateColumn(olv, "Cterm", HorizontalAlignment.Left, delegate (Object obj)
-			{
-				var parsed = (RankedContig)obj;
-				if (parsed.contig.Cterm == null)
-					return "";
-				else
-					return Math.Round(parsed.contig.Cterm.Delta, 3);
-			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+					if (sequence == null)
+						return "Unknown";
+					else
+						return sequence;
+				}, customFilterMenuBuilder: new StringFilterMenuBuilder(), objectsToBe: objectsToBe);
+				olv.AllColumns.Last().FillsFreeSpace = true;
+				olv.AllColumns.Last().Sortable = true;
+
+				olv.AllColumns.Last().TextAlign = HorizontalAlignment.Right;
+				Helpers.CreateColumn(olv, "Cterm", HorizontalAlignment.Left, delegate (Object obj)
+				{
+					var parsed = (RankedContig)obj;
+					if (parsed.contig.Cterm == null)
+						return "";
+					else
+						return Math.Round(parsed.contig.Cterm.Delta, 3);
+				}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+				olv.AllColumns.Last().Sortable = true;
+			}
 
 			Helpers.CreateColumn(olv, "SumRank", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).sumR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 
 			// we set the width to either the width of the manestring, or the width of the widest value.
 			Helpers.CreateColumn(olv, "PEAKS", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).peaks;
 			}, sortable: true, objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
+
 			var hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(PeaksColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -672,6 +681,7 @@ namespace FabLab
 			{
 				return ((RankedContig)obj).peaksR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(PeaksColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -679,14 +689,17 @@ namespace FabLab
 			{
 				return ((RankedContig)obj).template;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(TemplateColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			olv.AllColumns.Last().IsVisible = false;
+
 			Helpers.CreateColumn(olv, "# Template", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).templateR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(TemplateColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -695,6 +708,7 @@ namespace FabLab
 			{
 				return Math.Round((double)((RankedContig)obj).spectrum, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -702,6 +716,7 @@ namespace FabLab
 			{
 				return ((RankedContig)obj).spectrumR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -709,6 +724,7 @@ namespace FabLab
 			{
 				return ((RankedContig)obj).multi;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(MultiColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -716,6 +732,7 @@ namespace FabLab
 			{
 				return ((RankedContig)obj).multiR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(MultiColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -723,6 +740,7 @@ namespace FabLab
 			{
 				return Math.Round((double)((RankedContig)obj).conservedness, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(ConservedColor);
 			olv.AllColumns.Last().IsVisible = false;
@@ -732,6 +750,7 @@ namespace FabLab
 				return ((RankedContig)obj).conservednessR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
+			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs.SetBackColor(ConservedColor);
 			olv.AllColumns.Last().IsVisible = false;
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
@@ -762,6 +781,7 @@ namespace FabLab
 					return Math.Round(parsed.contig.Nterm.Delta, 3);
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().IsVisible = true;
+			olv.AllColumns.Last().Sortable = true;
 
 			Helpers.CreateColumn(olv, "Sequence", HorizontalAlignment.Left, delegate (Object obj)
 			{
@@ -776,6 +796,7 @@ namespace FabLab
 					return sequence;
 			}, customFilterMenuBuilder: new StringFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().FillsFreeSpace = true;
+			olv.AllColumns.Last().Sortable = true;
 
 			olv.AllColumns.Last().TextAlign = HorizontalAlignment.Right;
 			Helpers.CreateColumn(olv, "Cterm", HorizontalAlignment.Left, delegate (Object obj)
@@ -786,6 +807,7 @@ namespace FabLab
 				else
 					return Math.Round(parsed.contig.Cterm.Delta, 3);
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().Sortable = true;
 
 			Helpers.CreateColumn(olv, "SumRank", HorizontalAlignment.Left, delegate (Object obj)
 			{
@@ -916,7 +938,7 @@ namespace FabLab
 				Peptide nPep = nContig.contig;
 				return GetNGap(nPep, cpep);
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
-
+			olv.AllColumns.Last().Sortable = true;
 			olv.AllColumns.Last().IsVisible = false;
 
 			Helpers.CreateColumn(olv, regionName, HorizontalAlignment.Left, delegate (Object obj)
@@ -949,6 +971,9 @@ namespace FabLab
 
 				return GetCGap(npep, cPep);
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
+			olv.AllColumns.Last().Sortable = true;
+
+			AddColumns(contigs, olv, false);
 
 			Helpers.CreateColumn(olv, "Source", HorizontalAlignment.Left, delegate (Object obj)
 			{
@@ -1007,6 +1032,7 @@ namespace FabLab
 			try
 			{
 				DrawDotPlotForContigs(contigs, chart);
+				//Draw2DPlot(contigs, chart);
 			}
 			catch (Exception err)
 			{
@@ -1497,6 +1523,61 @@ namespace FabLab
 				chart.Series.Add(massDelta);
 		}
 
+		private void Draw2DPlot(RankedContig[] contigs, Chart chart)
+		{
+			if (!contigs.Any())
+				return;
+
+			ChartArea a = new ChartArea("Default");
+			a.CursorX.IsUserSelectionEnabled = true;
+			a.CursorY.IsUserSelectionEnabled = true;
+
+			chart.ChartAreas.Clear();
+			chart.Legends.Clear();
+			chart.Series.Clear();
+			a.AxisY.Minimum = contigs.Select(x => x.multi).Min();
+
+			chart.ChartAreas.Add(a);// Create a new legend called "Legend2".
+			chart.Legends.Add(new Legend(LegendName));
+
+			// Set Docking of the Legend chart to the Default Chart Area.
+			chart.Legends[LegendName].DockedToChartArea = "NotSet";
+
+			int i = 0;
+
+			Series massDelta = new Series($"Candidate scores)")
+			{
+				ChartType = SeriesChartType.Point,
+				Color = Color.FromArgb(80, 0, 0, 0),
+				Legend = LegendName,
+				IsVisibleInLegend = false,
+			};
+
+			massDelta.LabelToolTip = "Overall ranking";
+			massDelta.Font = new Font("Consolas", 14f);
+			massDelta.SmartLabelStyle = new SmartLabelStyle()
+			{
+				Enabled = true,
+				IsMarkerOverlappingAllowed = false,
+				IsOverlappedHidden = true,
+			};
+
+			chart.ChartAreas[0].AxisX.Title = "Spectrum";
+			chart.ChartAreas[0].AxisY.Title = "K-mer";
+
+			foreach (var contig in contigs)
+			{
+				massDelta.Points.AddXY((int)contig.spectrum, contig.multi);
+				massDelta.Points.Last().ToolTip = $"kmer#{contig.multiR}: {massDelta.Points.Last().YValues.First()} || Spectrum#{contig.spectrumR}: {massDelta.Points.Last().XValue} \n\n#{i}: {contig.contig.Sequence}";
+				i++;
+				if (i < 5)
+				{
+					massDelta.Points.Last().Label = $"#{i}";
+				}
+			}
+			chart.Series.Add(massDelta);
+		}
+
 		#endregion
 
 		#region Events
@@ -1857,7 +1938,7 @@ namespace FabLab
 						Name = string.Join(" ", numbering),
 						Cterm = fr2.contig.Cterm,
 						Modifications = new Modification[seqBuilder.Length],
-					};
+					}.ShiftPeptideToOptimum(Document.Spectrum, Document.ScoringModel);
 
 					if (Math.Abs(precursorMass - prediction.MonoIsotopicMass) < Settings.ToleranceInDaGapFillers)
 					{
@@ -2341,11 +2422,20 @@ namespace FabLab
 				ColorMapper colorMapperC = new ColorMapper(colormapC, avgs.Select(x => x.Item1).Max());
 				ColorMapper colorMapperN = new ColorMapper(colormapN, avgs.Select(x => x.Item2).Max());
 
+
 				bool isCterminus = true;
 				var cSeries = new Series("C-terminal support");
 				var nSeries = new Series("N-terminal support");
+				var labelSeries = new Series("Labels");
+				labelSeries.IsVisibleInLegend = false;
+				
+				nSeries.SmartLabelStyle = new SmartLabelStyle() {
+					IsMarkerOverlappingAllowed = true,
+					CalloutStyle = LabelCalloutStyle.Box,
+					
+				};
 
-					string seq = sequence.Substring(coverages.First().First().Idx, coverages.Count);
+				string seq = sequence.Substring(coverages.First().First().Idx, coverages.Count);
 
 				for (int resPos = 0; resPos < seq.Length; resPos++)
 				{
@@ -2382,11 +2472,25 @@ namespace FabLab
 					nSeries.Points.Last().Color = meanN == 1 ? Color.Black : colorN;
 					nSeries.Points.Last().BackGradientStyle = GradientStyle.TopBottom;
 					nSeries.Points.Last().BackSecondaryColor = meanN == 1 ? Color.Black : Color.Blue;
+					if (meanN == 1)
+					{
+						labelSeries.Points.AddXY(resPos, coverages.Select(x => x.Select(y => y.Sum).Sum()).Max() / 10 + yN);
+						labelSeries.Points.Last().Color = Color.FromArgb(0, 1, 1, 1);
+						labelSeries.Points.Last().Label = "N-Break";
+					}
+					
 					cSeries.Points.AddXY(resPos, yC);
 					cSeries.Points.Last().ToolTip = $"depth: {numPeps}\navg length: {meanC}\nscore: {meanC * numPeps}";
-					cSeries.Points.Last().Color = meanC == 1 ? Color.Black : Color.Red; ;
+					cSeries.Points.Last().Color = meanC == 1 ? Color.Black : Color.Red;
 					cSeries.Points.Last().BackSecondaryColor = meanC == 1 ? Color.Black : colorC;
 					cSeries.Points.Last().BackGradientStyle = GradientStyle.TopBottom;
+					if (meanC == 1)
+					{
+						labelSeries.Points.AddXY(resPos, coverages.Select(x => x.Select(y => y.Sum).Sum()).Max() / -10 + yC);
+						labelSeries.Points.Last().Color = Color.FromArgb(0, 1, 1, 1);
+						labelSeries.Points.Last().Label = "C-Break";
+						labelSeries.Points.Last().LabelAngle = -90;
+					}
 				}
 
 				nSeries.Legend = LegendName;
@@ -2409,6 +2513,7 @@ namespace FabLab
 
 				chart.Series.Add(nSeries);
 				chart.Series.Add(cSeries);
+				chart.Series.Add(labelSeries);
 
 				biggerIcons(chart, nSeries);
 				biggerIcons(chart, cSeries);
@@ -2473,7 +2578,6 @@ namespace FabLab
 				var startOffset = -0.5;
 				var endOffset = 0.5;
 				//a.AxisX.Minimum = -1;
-				//a.AxisX.Maximum = middle.numbering.Count();
 				a.AxisX.LabelStyle.Angle = -45;
 				a.AxisX.IsLabelAutoFit = false;
 				chart.Legends[LegendName].DockedToChartArea = "NotSet";
@@ -2878,7 +2982,6 @@ namespace FabLab
 				scoreTabControl.TabPages.Add(curTab);
 				curSplit = new SplitContainer
 				{
-					//curSplit.SplitterDistance = 700;
 					Parent = curTab,
 					Dock = DockStyle.Fill
 				};
@@ -2979,24 +3082,24 @@ namespace FabLab
 		{
 			ContextMenu icm = new ContextMenu();
 
-
 			icm.MenuItems.Add("Select contig For prediction", new EventHandler(SelectContigForPrediction));
 			icm.MenuItems.Add("Check contig for recombination", new EventHandler(CheckContigBox));
 			icm.MenuItems.Add("Add Mutated variant of this contig", new EventHandler(AddMutatedVariant));
-			icm.MenuItems.Add("Exclude contig from analysis", new EventHandler(RemoveRead));
+			//icm.MenuItems.Add("Exclude contig from analysis", new EventHandler(RemoveRead));
 
 			icm.MenuItems.Add("Write");
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Write all shown predictions to proforma", new EventHandler(WriteAllToProForma));
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Write all shown predictions to csv", new EventHandler(WriteAllToCsv));
 
 			icm.MenuItems.Add("Analyze");
-			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Recombine adjacent", new EventHandler(RecombineAdjacent));
-			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Show multiscore for all shown predictions", new EventHandler(ShowMultiScoreForAll));
-			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Refine all shown predictions", new EventHandler(RefineAll));
+			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Recombine adjacent checked candidates", new EventHandler(RecombineAdjacent));
+			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Rescore all shown candidates for this region", new EventHandler(ShowMultiScoreForAll));
+			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Refine (I/L) all shown predictions", new EventHandler(RefineAll));
 
 			icm.MenuItems.Add("View");
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Show Annotated spectrum", new EventHandler(ShowSpectrumViewContig));
-			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Show Read Coverage", new EventHandler(ShowReadCoverageViewContig));
+			//icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Show Read Coverage", new EventHandler(ShowReadCoverageViewContig));
+
 			return icm;
 		}
 
@@ -3448,8 +3551,9 @@ namespace FabLab
 				Parent = split.Panel2,
 				Dock = DockStyle.Fill
 			};
-			tc.TabPages.Add(new TabPage("Scatter"));
+			tc.TabPages.Add(new TabPage("BU vs MD"));
 			tc.TabPages.Add(new TabPage("Multi"));
+			tc.TabPages.Add(new TabPage("Scatter"));
 
 			predictionOlv.Tag = (range[0], range[1], tc);
 
@@ -3468,6 +3572,7 @@ namespace FabLab
 			predictionOlv.ItemsChanged += PredictionOlv_ItemsChanged;
 
 			DrawPredictionDotPlot(predictionOlv);
+			DrawPrediction2DPlot(predictionOlv);
 
 			return predictionOlv;
 		}
@@ -3575,7 +3680,7 @@ namespace FabLab
 		private void DrawPredictionDotPlot(object sender)
 		{
 			ObjectListView olv = ((ObjectListView)sender);
-			var chart = ControlsWithDockedCharts[(((int, int, TabControl))olv.Tag).Item3.TabPages[0]];
+			var chart = ControlsWithDockedCharts[(((int, int, TabControl))olv.Tag).Item3.TabPages[2]];
 			var ordered = new List<(int, RankedContig)>(olv.GetItemCount());
 
 			for (int i = 0; i < olv.GetItemCount(); i++)
@@ -3589,6 +3694,23 @@ namespace FabLab
 			DrawDotPlotForContigs(visiblePredictions, chart, true);
 		}
 
+		private void DrawPrediction2DPlot(object sender)
+		{
+			ObjectListView olv = ((ObjectListView)sender);
+			var chart = ControlsWithDockedCharts[(((int, int, TabControl))olv.Tag).Item3.TabPages[0]];
+			var ordered = new List<(int, RankedContig)>(olv.GetItemCount());
+
+			for (int i = 0; i < olv.GetItemCount(); i++)
+			{
+				int index = olv.GetDisplayOrderOfItemIndex(i);
+				var obj = (RankedContig)olv.GetItem(i).RowObject;
+				ordered.Add((index, obj));
+			}
+
+			var visiblePredictions = ordered.OrderBy(x => x.Item1).Select(x => x.Item2).ToArray();
+			Draw2DPlot(visiblePredictions, chart);
+		}
+
 		/// <summary>
 		/// Convert a template or numbered read to a gapped string, used to unify all lengths
 		/// </summary>
@@ -3597,7 +3719,6 @@ namespace FabLab
 		/// <returns></returns>
 		private char[] ConvertToGappedString((string template, double[] numbering) parsed, RegionType region, bool overrideIt = false)
 		{
-
 			if (!overrideIt && GappedSequences.TryGetValue((parsed, region), out char[] gapped))
 			{
 				return gapped;
@@ -3712,13 +3833,16 @@ namespace FabLab
 
 		private void outputAllCsvsToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-			var folder = Path.GetTempFileName().Replace(".tmp", "\\");
-			Directory.CreateDirectory(folder);
+			var ofd = new FolderBrowserDialog();
+			if (ofd.ShowDialog() != DialogResult.OK)
+				return;
+
+			var folder = ofd.SelectedPath;
 
 			var frs = new RegionType[] { RegionType.FR1, RegionType.FR2, RegionType.FR3, RegionType.FR4 };
 			var cdrs = new RegionType[] { RegionType.CDR1, RegionType.CDR2, RegionType.CDR3 };
 
-			DialogResult dr = MessageBox.Show("frs?",
+			DialogResult dr = MessageBox.Show("Output all displayed framework region scores to fr1-4.csv (bottom panel)?",
 					  "", MessageBoxButtons.YesNo);
 			if (dr == DialogResult.Yes)
 			{
@@ -3736,7 +3860,7 @@ namespace FabLab
 					}
 				}
 			}
-			dr = MessageBox.Show("cdrs?",
+			dr = MessageBox.Show("Recombine checked FRs into FR-CDR-FRs for CDR1-3 and output CDR scores to cdr1-3.csv?",
 					  "", MessageBoxButtons.YesNo);
 			if (dr == DialogResult.Yes)
 			{
@@ -3755,8 +3879,10 @@ namespace FabLab
 					}
 				}
 			}
-			dr = MessageBox.Show("chains?",
+
+			dr = MessageBox.Show("Recombine checked FRs into chain candidates and output scores to chains.csv?",
 					  "", MessageBoxButtons.YesNo);
+
 			if (dr == DialogResult.Yes)
 			{
 				var olv = recombineAll();
@@ -3770,11 +3896,7 @@ namespace FabLab
 				}
 			}
 
-			//first write all displayed fr1-4s
-
 			Process.Start(folder.ToString());
-
-			//then all recombined
 		}
 	}
 }
