@@ -319,32 +319,31 @@ namespace FabLab
 							break;
 					}
 				}
-                foreach (var region in Enum.GetValues(typeof(RegionType)))
-                {
 
-                    RegionType curRegion = (RegionType)region;
-                    switch (curRegion)
+                foreach (var region in Helpers.GetAllRegionEnums())
+                {
+                    switch (region)
                     {
                         case RegionType.FR1:
-                            OrderingVars.Add(curRegion, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
                             break;
                         case RegionType.CDR1:
-                            OrderingVars.Add(curRegion, new int[] { spectrum_key, peaks_key });
+                            OrderingVars.Add(region, new int[] { spectrum_key, peaks_key });
                             break;
                         case RegionType.FR2:
-                            OrderingVars.Add(curRegion, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
                             break;
                         case RegionType.CDR2:
-                            OrderingVars.Add(curRegion, new int[] { spectrum_key, peaks_key });
+                            OrderingVars.Add(region, new int[] { spectrum_key, peaks_key });
                             break;
                         case RegionType.FR3:
-                            OrderingVars.Add(curRegion, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
                             break;
                         case RegionType.CDR3:
-                            OrderingVars.Add(curRegion, new int[] { spectrum_key, peaks_key, conservedness_key });
+                            OrderingVars.Add(region, new int[] { spectrum_key, peaks_key, conservedness_key });
                             break;
                         case RegionType.FR4:
-                            OrderingVars.Add(curRegion, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
                             break;
                         default:
                             break;
@@ -371,16 +370,18 @@ namespace FabLab
                 var dir = Path.GetDirectoryName(path) + "\\Settings";
                 Directory.CreateDirectory(dir);
 
-                var set = new Settings();
-                set.SequenceSourceToDisplay = JsonUtils.ReadDictionary<SequenceSource, bool>(dir + @"SequenceSourceToDisplay.json");
-                set.OrderingVars = JsonUtils.ReadDictionary<RegionType, int[]>(dir + @"OrderingVars.json");
-                set.MaxNDelta = JsonUtils.Read<double>(dir + @"MaxNDelta.json");
-                set.MaxCDelta = JsonUtils.Read<double>(dir + @"MaxCDelta.json");
-                set.ToleranceInDaGapFillers = JsonUtils.Read<int>(dir + @"ToleranceInDaGapFillers.json");
-                set.MaxCdrInPrediction = JsonUtils.Read<int>(dir + @"MaxCdrInPrediction.json");
-                set.AddNullTermContigs = JsonUtils.Read<bool>(dir + @"AddNullTermContigs.json");
+				var set = new Settings
+				{
+					SequenceSourceToDisplay = JsonUtils.ReadDictionary<SequenceSource, bool>(dir + @"SequenceSourceToDisplay.json"),
+					OrderingVars = JsonUtils.ReadDictionary<RegionType, int[]>(dir + @"OrderingVars.json"),
+					MaxNDelta = JsonUtils.Read<double>(dir + @"MaxNDelta.json"),
+					MaxCDelta = JsonUtils.Read<double>(dir + @"MaxCDelta.json"),
+					ToleranceInDaGapFillers = JsonUtils.Read<int>(dir + @"ToleranceInDaGapFillers.json"),
+					MaxCdrInPrediction = JsonUtils.Read<int>(dir + @"MaxCdrInPrediction.json"),
+					AddNullTermContigs = JsonUtils.Read<bool>(dir + @"AddNullTermContigs.json")
+				};
 
-                return set;
+				return set;
             }
 		}
 
@@ -433,30 +434,28 @@ namespace FabLab
             var numberedPeps = numbered.Zip(inPep, (numbering, pep) => (pep, numbering.numbering)).ToList();
             var seqSource = SequenceSource.Contig;
 
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+            foreach (var region in Helpers.GetAllRegionEnums())
             {
-                // parse the name
-                RegionType curRegion = (RegionType)region;
-                if (curRegion == RegionType.None)
+                if (region == RegionType.None)
                     continue;
                 int toleranceForRenumbering = 2;
-                List<(Peptide clipped, double[] numbering)> clipped1 = ClipToRegion(numberedPeps, curRegion, false, toleranceForRenumbering).Where(x => x.clipped.Length != 0).ToList();
+                List<(Peptide clipped, double[] numbering)> clipped1 = ClipToRegion(numberedPeps, region, false, toleranceForRenumbering).Where(x => x.clipped.Length != 0).ToList();
 
                 // TODO chance for a speedup possibly
                 int toleranceForClipping = 0;
 				List<(Peptide pep, double[] numbering)> renumbered = ReadFilter.GetNumberingAndAlignmentForReadsDynamicProgramming(clipped1.Select(x => x.clipped.Sequence), Templates.First()).Zip(clipped1, (numbering, pep) => (pep.clipped, numbering.numbering)).ToList();
-                List<(Peptide clipped, double[] numbering)> contigs = ClipToRegion(renumbered, curRegion, true, toleranceForClipping).Where(x => x.clipped.Length != 0).ToList();
+                List<(Peptide clipped, double[] numbering)> contigs = ClipToRegion(renumbered, region, true, toleranceForClipping).Where(x => x.clipped.Length != 0).ToList();
 
                 (Peptide x, double[])[] noDups2 = RemoveDuplicates(contigs);
                 //(Peptide x, double[])[] noDups2 = contigs.ToArray();
 
-                var ranked = Helpers.Helpers.Rank(noDups2, this, seqSource, curRegion);
+                var ranked = Helpers.Rank(noDups2, this, seqSource, region);
 
 				// we only want FRs of at least length 3
-                if (!Helpers.Helpers.IsCdr(curRegion))
+                if (!Helpers.IsCdr(region))
 					ranked = ranked.Where(x => x.contig.Length > 2).ToArray();
 
-                if (ClippedContigs.TryGetValue(curRegion, out RankedContig[] previouslyRanked))
+                if (ClippedContigs.TryGetValue(region, out RankedContig[] previouslyRanked))
 				{
 					var rList = ranked.ToList();
 					rList.AddRange(previouslyRanked);
@@ -464,7 +463,7 @@ namespace FabLab
 					// remove duplicates, this is not perfect! //TODO
 					rList = rList.GroupBy(x => x.contig.GetModifiedSequence()).Select(x => x.First()).ToList();
 
-                    var varsToOrderOn = CurrentSettings.OrderingVars[curRegion];
+                    var varsToOrderOn = CurrentSettings.OrderingVars[region];
                     if (varsToOrderOn.Contains(5) && !CurrentSettings.UseMultiScore)
                     {
                         var l = varsToOrderOn.ToList();
@@ -472,11 +471,11 @@ namespace FabLab
                         varsToOrderOn = l.ToArray();
                     }
                     
-                    ClippedContigs[curRegion] = Reorder(rList.ToArray(), varsToOrderOn);
+                    ClippedContigs[region] = Reorder(rList.ToArray(), varsToOrderOn);
                 }
 				else
 				{
-					ClippedContigs.Add(curRegion, ranked);
+					ClippedContigs.Add(region, ranked);
 				}
 			}
 
@@ -486,7 +485,7 @@ namespace FabLab
                     x.clipped.Name = "";
                     return x.clipped;
                 }), Spectrum).Where(x => x.Sequence != "");
-				var noDups2 = noDups.Select(x => (x, contigs.Where(y => y.clipped.GetModifiedSequence() == x.GetModifiedSequence()).First().Item2)).ToArray();
+				var noDups2 = noDups.Select(x => (x, contigs.Where(y => y.clipped.GetModifiedSequence() == x.GetModifiedSequence()).First().numbering)).ToArray();
 				return noDups2;
 			}
 
@@ -496,18 +495,17 @@ namespace FabLab
                 var asm = new AnnotatedSpectrumMatch(Spectrum, bestFr4, ScoringModel);
                 var relErrors = GatherErrorsAndCorrect(asm.FragmentMatches, Spectrum);
 
-                foreach (var region in Enum.GetValues(typeof(RegionType)))
-                {// parse the name
-                    RegionType curRegion = (RegionType)region;
-                    if (curRegion == RegionType.None)
+                foreach (var region in Helpers.GetAllRegionEnums())
+                {
+                    if (region == RegionType.None)
                         continue;
 
-                    if (Helpers.Helpers.IsCdr(curRegion))
+                    if (Helpers.IsCdr(region))
                         continue;
 
-                    if (ClippedContigs.TryGetValue(curRegion, out RankedContig[] previouslyRanked))
+                    if (ClippedContigs.TryGetValue(region, out RankedContig[] previouslyRanked))
                     {
-                        ClippedContigs[curRegion] = Helpers.Helpers.Rank(previouslyRanked.Select(x => (x.contig.ShiftPeptideToOptimum(Spectrum, ScoringModel, Math.Abs(2 * relErrors.Average() * Spectrum.PrecursorMass), Math.Abs(2 * relErrors.Average() * Spectrum.PrecursorMass), stepSize: 0.001), x.numbering)).ToArray(), this, seqSource, curRegion);
+                        ClippedContigs[region] = Helpers.Rank(previouslyRanked.Select(x => (x.contig.ShiftPeptideToOptimum(Spectrum, ScoringModel, Math.Abs(2 * relErrors.Average() * Spectrum.PrecursorMass), Math.Abs(2 * relErrors.Average() * Spectrum.PrecursorMass), stepSize: 0.001), x.numbering)).ToArray(), this, seqSource, region);
                     }
                 }
             }
@@ -556,7 +554,7 @@ namespace FabLab
 
         public List<(Peptide clipped, double[] numbering)> ClipToRegion(List<(Peptide pep, double[] numbering)> numberedPeps, RegionType curRegion, bool shift = true, int tolerance = 0)
 		{
-			var (startImgt, endImgt) = Helpers.Helpers.GetBorders(curRegion);
+			var (startImgt, endImgt) = Helpers.GetBorders(curRegion);
 
 			var contigs = new List<(Peptide clipped, double[] numbering)>();
 
@@ -788,63 +786,64 @@ namespace FabLab
         public static Document LoadFromPaths(Settings settings)
         {
             var ofd = new OpenFileDialog();
-
-            string contaminantsPath = null;
-            string peaksPath = null;
-            string spectrumPath = null;
-            string contigPath = null;
-            string templatePath = null;
-
-            MessageBox.Show("Select fasta with templates (all files should be in the same folder)");
-            ofd.Title = "Select Templates";
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                templatePath = Path.GetFileName(ofd.FileName);
-            }
+			MessageBox.Show("Select fasta with templates (all files should be in the same folder)");
+			ofd.Title = "Select Templates";
+			string templatePath;
+			if (ofd.ShowDialog() == DialogResult.OK)
+			{
+				templatePath = Path.GetFileName(ofd.FileName);
+			}
 			else
-                return null;
+				return null;
 
-            MessageBox.Show("Select fasta with contaminants (all files should be in the same folder)");
+			MessageBox.Show("Select fasta with contaminants (all files should be in the same folder)");
             ofd.Title = "Select Contaminants";
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                contaminantsPath = Path.GetFileName(ofd.FileName);
-            }
-            else
-                return null;
 
-            MessageBox.Show("Select de novo peptides from peaks (all files should be in the same folder)");
+			string contaminantsPath;
+			if (ofd.ShowDialog() == DialogResult.OK)
+			{
+				contaminantsPath = Path.GetFileName(ofd.FileName);
+			}
+			else
+				return null;
+
+			MessageBox.Show("Select de novo peptides from peaks (all files should be in the same folder)");
             ofd.Title = "Select reads";
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                peaksPath = Path.GetFileName(ofd.FileName);
-            }
-            else
-                return null;
+			string peaksPath;
+			if (ofd.ShowDialog() == DialogResult.OK)
+			{
+				peaksPath = Path.GetFileName(ofd.FileName);
+			}
+			else
+				return null;
 
-            MessageBox.Show("Select top down spectra (mgf) (all files should be in the same folder)");
+			MessageBox.Show("Select top down spectra (mgf) (all files should be in the same folder)");
             ofd.Title = "Select spectrum";
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                spectrumPath = Path.GetFileName(ofd.FileName);
-            }
-            else
-                return null;
+			string spectrumPath;
+			if (ofd.ShowDialog() == DialogResult.OK)
+			{
+				spectrumPath = Path.GetFileName(ofd.FileName);
+			}
+			else
+				return null;
 
-            MessageBox.Show("Select contigs file (pro forma) (all files should be in the same folder)");
+			MessageBox.Show("Select contigs file (pro forma) (all files should be in the same folder)");
             ofd.Title = "Select contigs";
-            if (ofd.ShowDialog() == DialogResult.OK)
-            {
-                contigPath = Path.GetFileName(ofd.FileName);
-            }
-            else
-                return null;
+			string contigPath;
+			if (ofd.ShowDialog() == DialogResult.OK)
+			{
+				contigPath = Path.GetFileName(ofd.FileName);
+			}
+			else
+				return null;
 
 			var input = new Input("fablab", Path.GetDirectoryName(ofd.FileName), templatePath, contaminantsPath, peaksPath, spectrumPath, contigPath);
 
-            var sfd = new SaveFileDialog();
-            sfd.DefaultExt = "flconfig";
-            MessageBox.Show("select write location for configfile");
+			var sfd = new SaveFileDialog
+			{
+				DefaultExt = "flconfig"
+			};
+			MessageBox.Show("select write location for configfile");
             if (sfd.ShowDialog() == DialogResult.OK)
             {
                 JsonUtils.Write(sfd.FileName, input);
@@ -870,8 +869,10 @@ namespace FabLab
         /// <returns></returns>
         public static Document LoadFromInputClass(Input input, Settings settings)
 		{
-			Document doc = new Document();
-			doc.CurrentSettings = settings;
+			Document doc = new Document
+			{
+				CurrentSettings = settings
+			};
 
 			var templates = new List<Peptide>();
 			var contaminants = new List<Peptide>();
@@ -891,8 +892,8 @@ namespace FabLab
 			doc.ReadFilter.Process();
 			doc.NumberedTemplates = templates.Select(x => doc.ReadFilter.TemplateNumbering[doc.ReadFilter.GetTemplateIdx(x)]).Select(x => (x.template, x.numbering)).ToList();
 			doc.NumberedReads = doc.ReadFilter.GetRenumberedReadsForTemplates(doc.Templates);
-            if (doc.Locus == ImgtFilterLib.LociEnum.TBD)
-                doc.Locus = Helpers.Helpers.GetLocusEnum(doc.Templates.Last().Name);
+            if (doc.Locus == LociEnum.TBD)
+                doc.Locus = Helpers.GetLocusEnum(doc.Templates.Last().Name);
 
             // spectrum is a json
 			if (input.SpectrumPath.EndsWith("json"))
@@ -924,9 +925,9 @@ namespace FabLab
 
         private static void AddConsensusToDoc(Document doc)
 		{
-			var consensus = ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads).Where(x => x.Item2.Count != 0).ToDictionary(x => x.number, x => x.Item2.OrderByDescending(y => y.count).ToList());
+			var consensus = ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads).Where(x => x.frequencies.Count != 0).ToDictionary(x => x.number, x => x.frequencies.OrderByDescending(y => y.count).ToList());
 			var nums = consensus.Keys;
-			var orderedNums = Helpers.Helpers.OrderImgtNumbering(nums);
+			var orderedNums = Helpers.OrderImgtNumbering(nums);
 			doc.Consensus = orderedNums.Select(x => (x, consensus[x])).ToList();
 		}
 
@@ -999,10 +1000,12 @@ namespace FabLab
                 StartPosition = FormStartPosition.CenterScreen
             };
 
-            ComboBox locusCb = new ComboBox();
-            locusCb.DataSource = Enum.GetValues(typeof(LociEnum));
-            locusCb.Dock = DockStyle.Fill;
-            prompt.Controls.Add(locusCb);
+			ComboBox locusCb = new ComboBox
+			{
+				DataSource = Enum.GetValues(typeof(LociEnum)),
+				Dock = DockStyle.Fill
+			};
+			prompt.Controls.Add(locusCb);
 
             Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
             confirmation.Click += (sender, e) => { prompt.Close(); };
@@ -1093,23 +1096,23 @@ namespace FabLab
                     
         Parallel.For(0, contigs.Length, i =>
             {
-                if (varsToOrderOn.Contains(Document.peaks_key))
+                if (varsToOrderOn.Contains(peaks_key))
                 {
                     contigs[i].sumR += contigs[i].peaksR;
                 }
-                if (varsToOrderOn.Contains(Document.template_key))
+                if (varsToOrderOn.Contains(template_key))
                 {
                     contigs[i].sumR += contigs[i].templateR; // never hit
                 }
-                if (varsToOrderOn.Contains(Document.spectrum_key))
+                if (varsToOrderOn.Contains(spectrum_key))
                 {
                     contigs[i].sumR += contigs[i].spectrumR;
                 }
-                if (varsToOrderOn.Contains(Document.conservedness_key))
+                if (varsToOrderOn.Contains(conservedness_key))
                 {
                     contigs[i].sumR += contigs[i].conservednessR;
                 }
-                if (varsToOrderOn.Contains(Document.multi_key))
+                if (varsToOrderOn.Contains(multi_key))
                 {
                     contigs[i].sumR += contigs[i].multiR;
                 }

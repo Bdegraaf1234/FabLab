@@ -9,9 +9,11 @@ using HeckLib.visualization;
 using HeckLib.visualization.objectlistview;
 using HeckLibWin32;
 using HtmlGenerator;
+using ImgtFilterLib;
 using PsrmLib;
 using PsrmLib.IO;
 using PsrmLib.Models;
+using PsrmLib.Processing;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -29,7 +31,7 @@ namespace FabLab
 {
 	public partial class FabLabForm : Form
 	{
-		private string LegendName = "Legend2";
+		private readonly string LegendName = "Legend2";
 		#region Data
 
 		public Dictionary<((string, double[]), RegionType), char[]> GappedSequences = new Dictionary<((string, double[]), RegionType), char[]>();
@@ -40,27 +42,27 @@ namespace FabLab
 		public Document.Settings Settings { get => Document != null ? Document.CurrentSettings : _settings; }
 
 
-		private Dictionary<RegionType, RankedContig> SelectedContigs = new Dictionary<RegionType, RankedContig>();
+		private readonly Dictionary<RegionType, RankedContig> SelectedContigs = new Dictionary<RegionType, RankedContig>();
 
-		private Dictionary<RegionType, ObjectListView> scoreViews = new Dictionary<RegionType, ObjectListView>();
-		private Dictionary<RegionType, ObjectListView> contigViews = new Dictionary<RegionType, ObjectListView>();
-		private Dictionary<RegionType, Chart[]> contigCharts = new Dictionary<RegionType, Chart[]>();
-		private Dictionary<RegionType, Chart> scoreCharts = new Dictionary<RegionType, Chart>();
-		private Dictionary<RegionType, SplitContainer> ScoreSplits = new Dictionary<RegionType, SplitContainer>();
-		private Dictionary<Control, Chart> ControlsWithDockedCharts = new Dictionary<Control, Chart>();
+		private readonly Dictionary<RegionType, ObjectListView> scoreViews = new Dictionary<RegionType, ObjectListView>();
+		private readonly Dictionary<RegionType, ObjectListView> contigViews = new Dictionary<RegionType, ObjectListView>();
+		private readonly Dictionary<RegionType, Chart[]> contigCharts = new Dictionary<RegionType, Chart[]>();
+		private readonly Dictionary<RegionType, Chart> scoreCharts = new Dictionary<RegionType, Chart>();
+		private readonly Dictionary<RegionType, SplitContainer> ScoreSplits = new Dictionary<RegionType, SplitContainer>();
+		private readonly Dictionary<Control, Chart> ControlsWithDockedCharts = new Dictionary<Control, Chart>();
 		private string EntryDbPath;
 		public Dictionary<RegionType, RankedContig[]> SessionContigs = new Dictionary<RegionType, RankedContig[]>();
 		public Dictionary<RegionType, List<RankedContig>> ExcludedContigs = new Dictionary<RegionType, List<RankedContig>>();
 
 		//colors
-		private Color PeaksColor = Color.FromArgb(253, 174, 97);
-		private Color TemplateColor = Color.FromArgb(255, 115, 90);
-		private Color SpectrumColor = Color.FromArgb(171, 221, 164);
-		private Color ConservedColor = Color.FromArgb(43, 131, 186);
-		private Color MultiColor = Color.FromArgb(240, 163, 255);
+		private readonly Color PeaksColor = Color.FromArgb(253, 174, 97);
+		private readonly Color TemplateColor = Color.FromArgb(255, 115, 90);
+		private readonly Color SpectrumColor = Color.FromArgb(171, 221, 164);
+		private readonly Color ConservedColor = Color.FromArgb(43, 131, 186);
+		private readonly Color MultiColor = Color.FromArgb(240, 163, 255);
 		// ACDEFGHIKLMNPQRSTUVWYX
 		// http://yulab-smu.top/ggmsa/articles/guides/Color_schemes_And_Font_Families.html#color-by-letter-1
-		private Color[] aaColorScheme = new Color[]
+		private readonly Color[] aaColorScheme = new Color[]
 			{
 				Color.FromArgb(240, 163, 255),    //A Amethyst
                 Color.FromArgb(153, 63, 0),   //C Caramel
@@ -150,21 +152,15 @@ namespace FabLab
 			cm.MenuItems.Add("ReadCoverage", new EventHandler(ShowReadCoverageView));
 			templateObjectListView.ContextMenu = cm;
 
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+            foreach (var region in Helpers.GetAllRegionEnums())
 			{
-				// parse the name
-				RegionType curRegion = (RegionType)region;
-				if (curRegion == RegionType.None)
-					continue;
-
-
 				// initializes if no values were found
-				GetScoreSplit(curRegion);
-				GetScoreOlv(curRegion);
-				GetOlv(curRegion);
+				GetScoreSplit(region);
+				GetScoreOlv(region);
+				GetOlv(region);
 
 				// initialize exclusion list
-				ExcludedContigs.Add(curRegion, new List<RankedContig>(10));
+				ExcludedContigs.Add(region, new List<RankedContig>(10));
 			}
 		}
 
@@ -206,31 +202,25 @@ namespace FabLab
 			var nums = new List<double>();
 			Peptide prediction = new Peptide("", "Prediction");
 
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
-			{
-				// parse the name
-				RegionType curRegion = (RegionType)region;
-				if (curRegion == RegionType.None)
-					continue;
 
-				if (!SelectedContigs.TryGetValue(curRegion, out RankedContig middle))
+			foreach (var region in Helpers.GetAllRegionEnums())
+			{
+				if (!SelectedContigs.TryGetValue(region, out RankedContig middle))
 				{
-					double[] numbering;
-					string sequence;
-					GetConsensusContig(curRegion, out numbering, out sequence);
+					GetConsensusContig(region, out double[] numbering, out string sequence);
 					seq += sequence;
 					nums.AddRange(numbering);
 					continue;
 				}
 
-				if (curRegion == RegionType.FR1)
+				if (region == RegionType.FR1)
 				{
 					prediction.Nterm = middle.contig.Nterm;
 					seq += middle.contig.Sequence;
 					nums.AddRange(middle.numbering);
 					continue;
 				}
-				else if (curRegion == RegionType.FR4)
+				else if (region == RegionType.FR4)
 				{
 					prediction.Cterm = middle.contig.Cterm;
 					seq += middle.contig.Sequence;
@@ -341,8 +331,8 @@ namespace FabLab
 				RegionType curRegion = (RegionType)olv.Tag;
 
 				double[] numbering;
-				double floor = Helpers.Helpers.GetBorders(curRegion).Item1;
-				double ceiling = Helpers.Helpers.GetBorders(curRegion).Item2;
+				double floor = Helpers.GetBorders(curRegion).Item1;
+				double ceiling = Helpers.GetBorders(curRegion).Item2;
 				string sequence = "";
 				if (!SelectedContigs.TryGetValue(curRegion, out RankedContig middle))
 				{
@@ -502,7 +492,7 @@ namespace FabLab
 
 				RankedContig[] rankedContigs = olv.FilteredObjects.Cast<RankedContig>().ToArray();
 				var range = OLVDoublePrompt.ShowDialog(0, rankedContigs.Select(x => x.contig.Length).Max()).Select(x => (int)x).ToArray();
-				var ranked = Helpers.Helpers.RankFullLength(rankedContigs.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document, Document.Locus, range);
+				var ranked = Helpers.RankFullLength(rankedContigs.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document, Document.Locus, range);
 				ShowPredictionsView(ranked, range);
 			}
 			catch (Exception er)
@@ -533,7 +523,7 @@ namespace FabLab
 			}
 		}
 
-		private void Refresh()
+		private void Reload()
 		{
 			this.Text = Document.Title;
 
@@ -547,41 +537,32 @@ namespace FabLab
 		private void PopulateContigListViews()
 		{
 			// fill FR
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+			foreach (var region in Helpers.GetAllRegionEnums())
 			{
-				// parse the name
-				RegionType curRegion = (RegionType)region;
-				if (curRegion == RegionType.None)
-					continue;
-				if (Helpers.Helpers.IsCdr(curRegion))
+				if (Helpers.IsCdr(region))
 					continue;
 
-				FillContigandScoreViews(curRegion);
+				FillContigandScoreViews(region);
 			}
 
 			// cdr
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+			foreach (var region in Helpers.GetAllRegionEnums())
 			{
-				// parse the name
-				RegionType curRegion = (RegionType)region;
-				if (curRegion == RegionType.None)
+				if (!Helpers.IsCdr(region))
 					continue;
-
-				if (!Helpers.Helpers.IsCdr(curRegion))
-					continue;
-				FillContigandScoreViews(curRegion);
+				FillContigandScoreViews(region);
 			}
 		}
 
 		private void InitializeFrContigAndScoreViews()
 		{
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+			foreach (var region in Helpers.GetAllRegionEnums())
 			{
 				// parse the name
 				RegionType curRegion = (RegionType)region;
 				if (curRegion == RegionType.None)
 					continue;
-				if (Helpers.Helpers.IsCdr(curRegion))
+				if (Helpers.IsCdr(curRegion))
 					continue;
 
 				InitializeContigListView(curRegion);
@@ -592,13 +573,13 @@ namespace FabLab
 
 		private void InitializeCdrContigAndScoreViews()
 		{
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+			foreach (var region in Helpers.GetAllRegionEnums())
 			{
 				// parse the name
 				RegionType curRegion = (RegionType)region;
 				if (curRegion == RegionType.None)
 					continue;
-				if (!Helpers.Helpers.IsCdr(curRegion))
+				if (!Helpers.IsCdr(curRegion))
 					continue;
 
 				FillIfCdr(curRegion);
@@ -623,10 +604,6 @@ namespace FabLab
 			}
 			contigs = Document.Reorder(contigs, varsToOrderOn);
 
-
-			var curSplit = GetScoreSplit(curRegion);
-			string regionName = Enum.GetName(typeof(RegionType), curRegion);
-
 			// create the olv and columns
 			ObjectListView scoreOlv = GetScoreOlv(curRegion);
 			AddColumns2(contigs, scoreOlv, curRegion);
@@ -637,14 +614,14 @@ namespace FabLab
 		private void AddColumns(RankedContig[] contigs, ObjectListView olv)
 		{
 			IEnumerable<object> objectsToBe = contigs.Select(x => (object)x);
-			var numInRange = Helpers.Helpers.OrderImgtNumbering(contigs.Where(x => x.numbering != null).SelectMany(x => x.numbering).ToArray());
+			var numInRange = Helpers.OrderImgtNumbering(contigs.Where(x => x.numbering != null).SelectMany(x => x.numbering).ToArray());
 
-			Helpers.Helpers.CreateColumn(olv, "#", HorizontalAlignment.Right, delegate (Object obj)
+			Helpers.CreateColumn(olv, "#", HorizontalAlignment.Right, delegate (Object obj)
 			{
 				return "";
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.Helpers.CreateColumn(olv, "Nterm", HorizontalAlignment.Right, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Nterm", HorizontalAlignment.Right, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				if (parsed.contig.Nterm == null)
@@ -654,7 +631,7 @@ namespace FabLab
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().IsVisible = true;
 
-			Helpers.Helpers.CreateColumn(olv, "Sequence", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Sequence", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				var numberedContig = (parsed.contig.Sequence, parsed.numbering);
@@ -669,7 +646,7 @@ namespace FabLab
 			olv.AllColumns.Last().FillsFreeSpace = true;
 
 			olv.AllColumns.Last().TextAlign = HorizontalAlignment.Right;
-			Helpers.Helpers.CreateColumn(olv, "Cterm", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Cterm", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				if (parsed.contig.Cterm == null)
@@ -678,27 +655,27 @@ namespace FabLab
 					return Math.Round(parsed.contig.Cterm.Delta, 3);
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.Helpers.CreateColumn(olv, "SumRank", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "SumRank", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).sumR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
 			// we set the width to either the width of the manestring, or the width of the widest value.
-			Helpers.Helpers.CreateColumn(olv, "PEAKS", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "PEAKS", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).peaks;
 			}, sortable: true, objectsToBe: objectsToBe);
 			var hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(PeaksColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# PEAKS", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# PEAKS", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).peaksR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(PeaksColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "Template", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Template", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).template;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -706,7 +683,7 @@ namespace FabLab
 			hfs.SetBackColor(TemplateColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			olv.AllColumns.Last().IsVisible = false;
-			Helpers.Helpers.CreateColumn(olv, "# Template", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Template", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).templateR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -714,35 +691,35 @@ namespace FabLab
 			hfs.SetBackColor(TemplateColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			olv.AllColumns.Last().IsVisible = false;
-			Helpers.Helpers.CreateColumn(olv, "Spectrum", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return Math.Round((double)((RankedContig)obj).spectrum, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# Spectrum", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).spectrumR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "K-mer", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).multi;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(MultiColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# K-mer", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).multiR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(MultiColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "Germline", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Germline", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return Math.Round((double)((RankedContig)obj).conservedness, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -750,7 +727,7 @@ namespace FabLab
 			hfs.SetBackColor(ConservedColor);
 			olv.AllColumns.Last().IsVisible = false;
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# Germline", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Germline", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).conservednessR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -769,14 +746,14 @@ namespace FabLab
 		private void AddColumns2(RankedContig[] contigs, ObjectListView olv, RegionType curRegion)
 		{
 			IEnumerable<object> objectsToBe = contigs.Select(x => (object)x);
-			var numInRange = Helpers.Helpers.OrderImgtNumbering(contigs.Where(x => x.numbering != null).SelectMany(x => x.numbering).ToArray());
+			var numInRange = Helpers.OrderImgtNumbering(contigs.Where(x => x.numbering != null).SelectMany(x => x.numbering).ToArray());
 
-			Helpers.Helpers.CreateColumn(olv, "#", HorizontalAlignment.Right, delegate (Object obj)
+			Helpers.CreateColumn(olv, "#", HorizontalAlignment.Right, delegate (Object obj)
 			{
 				return "";
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.Helpers.CreateColumn(olv, "Nterm", HorizontalAlignment.Right, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Nterm", HorizontalAlignment.Right, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				if (parsed.contig.Nterm == null)
@@ -786,7 +763,7 @@ namespace FabLab
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().IsVisible = true;
 
-			Helpers.Helpers.CreateColumn(olv, "Sequence", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Sequence", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				var numberedContig = (parsed.contig.Sequence, parsed.numbering);
@@ -801,7 +778,7 @@ namespace FabLab
 			olv.AllColumns.Last().FillsFreeSpace = true;
 
 			olv.AllColumns.Last().TextAlign = HorizontalAlignment.Right;
-			Helpers.Helpers.CreateColumn(olv, "Cterm", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Cterm", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				if (parsed.contig.Cterm == null)
@@ -810,27 +787,27 @@ namespace FabLab
 					return Math.Round(parsed.contig.Cterm.Delta, 3);
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.Helpers.CreateColumn(olv, "SumRank", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "SumRank", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).sumR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
 			// we set the width to either the width of the manestring, or the width of the widest value.
-			Helpers.Helpers.CreateColumn(olv, "PEAKS", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "PEAKS", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).peaks;
 			}, sortable: true, objectsToBe: objectsToBe);
 			var hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(PeaksColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# PEAKS", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# PEAKS", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).peaksR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(PeaksColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "Template", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Template", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).template;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -838,7 +815,7 @@ namespace FabLab
 			hfs.SetBackColor(TemplateColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			olv.AllColumns.Last().IsVisible = false;
-			Helpers.Helpers.CreateColumn(olv, "# Template", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Template", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).templateR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -846,35 +823,35 @@ namespace FabLab
 			hfs.SetBackColor(TemplateColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			olv.AllColumns.Last().IsVisible = false;
-			Helpers.Helpers.CreateColumn(olv, "Spectrum", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return Math.Round((double)((RankedContig)obj).spectrum, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# Spectrum", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).spectrumR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "K-mer", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).multi;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(MultiColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# K-mer", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).multiR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(MultiColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "Germline", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Germline", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return Math.Round((double)((RankedContig)obj).conservedness, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -882,7 +859,7 @@ namespace FabLab
 			hfs.SetBackColor(ConservedColor);
 			olv.AllColumns.Last().IsVisible = false;
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.Helpers.CreateColumn(olv, "# Germline", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Germline", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				return ((RankedContig)obj).conservednessR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
@@ -916,21 +893,21 @@ namespace FabLab
 			contigs = Document.Reorder(contigs, varsToOrderOn);
 
 			IEnumerable<object> objectsToBe = contigs.Select(x => (object)x);
-			var numInRange = Helpers.Helpers.OrderImgtNumbering(contigs.SelectMany(x => x.numbering).ToArray());
+			var numInRange = Helpers.OrderImgtNumbering(contigs.SelectMany(x => x.numbering).ToArray());
 
 			// checkbox column
-			Helpers.Helpers.CreateColumn(olv, "", HorizontalAlignment.Right, delegate (Object obj)
+			Helpers.CreateColumn(olv, "", HorizontalAlignment.Right, delegate (Object obj)
 			{
 				return "";
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.Helpers.CreateColumn(olv, "NTerm", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "NTerm", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 
 				RegionType nFlank = RegionType.CDR3;
 				if (curRegion != RegionType.FR4)
-					nFlank = Helpers.Helpers.GetFlanking(curRegion).Item1;
+					nFlank = Helpers.GetFlanking(curRegion).Item1;
 
 				if (!SelectedContigs.TryGetValue(nFlank, out RankedContig nContig))
 					return Math.Round(parsed.contig.Nterm.Delta, 1);
@@ -942,7 +919,7 @@ namespace FabLab
 
 			olv.AllColumns.Last().IsVisible = false;
 
-			Helpers.Helpers.CreateColumn(olv, regionName, HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, regionName, HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				var numberedContig = (parsed.contig.Sequence, parsed.numbering);
@@ -957,13 +934,13 @@ namespace FabLab
 
 			olv.AllColumns.Last().FillsFreeSpace = true;
 
-			Helpers.Helpers.CreateColumn(olv, "CTerm", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "CTerm", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 
 				RegionType cFlank = RegionType.CDR1;
 				if (curRegion != RegionType.FR1)
-					cFlank = Helpers.Helpers.GetFlanking(curRegion).Item2;
+					cFlank = Helpers.GetFlanking(curRegion).Item2;
 				if (!SelectedContigs.TryGetValue(cFlank, out RankedContig cContig))
 					return Math.Round(parsed.contig.Cterm.Delta, 1);
 
@@ -973,7 +950,7 @@ namespace FabLab
 				return GetCGap(npep, cPep);
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 
-			Helpers.Helpers.CreateColumn(olv, "Source", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Source", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 
@@ -1060,7 +1037,7 @@ namespace FabLab
 				}
 			}
 
-			if (Helpers.Helpers.IsCdr(curRegion))
+			if (Helpers.IsCdr(curRegion))
 			{
 				res = res.Where(x => !ExcludedContigs[curRegion].Select(y => y.contig.Sequence).Contains(x.contig.Sequence)).ToArray();
 			}
@@ -1136,11 +1113,11 @@ namespace FabLab
 			{
 				innerContigs = innerContigs.Where(x => Math.Abs(x.contig.Cterm.Delta) < Settings.MaxCDelta).ToList();
 			}
-			if (!Helpers.Helpers.IsCdr(curRegion))
+			if (!Helpers.IsCdr(curRegion))
 			{
 
 				innerContigs = innerContigs.Where(x => x.contig.Length > 2);
-				var (startImgt, endImgt) = Helpers.Helpers.GetBorders(curRegion);
+				var (startImgt, endImgt) = Helpers.GetBorders(curRegion);
 
 				if (startImgt == double.MinValue)
 					startImgt = 1;
@@ -1204,7 +1181,7 @@ namespace FabLab
 				var numbered = GetGapFillingReads().ToList();
 				var consensusPeptide = GetConsensusRankedContig();
 
-				var rankedList = Helpers.Helpers.Rank(numbered.Where(x =>
+				var rankedList = Helpers.Rank(numbered.Where(x =>
 				{
 					var gapsize = GetNGap(nFlank.contig, cFlank.contig);
 					return innerTol.IsDuplicate(gapsize, x.x.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum());
@@ -1215,7 +1192,7 @@ namespace FabLab
 					//rankedList.Add(consensusPeptide);
 					var numbered2 = GetGapFillingReads2();
 
-					rankedList.AddRange(Helpers.Helpers.Rank(numbered2.Where(x =>
+					rankedList.AddRange(Helpers.Rank(numbered2.Where(x =>
 					{
 						var gapsize = GetNGap(nFlank.contig, cFlank.contig);
 						return innerTol.IsDuplicate(gapsize, x.peptide.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum());
@@ -1231,9 +1208,9 @@ namespace FabLab
 			RankedContig GetConsensusRankedContig()
 			{
 				var cons = GetConsensusPeptide(region, nFlank.contig);
-				double[] consNumber = Helpers.Helpers.NumberCdr(region, cons.Sequence);
+				double[] consNumber = ImgtNumberer.NumberCdr(region, cons.Sequence);
 				var consArray = new (Peptide, double[])[] { (cons, consNumber) };
-				var rankedListCons = Helpers.Helpers.Rank(consArray, Document, SequenceSource.Consensus, region).ToList();
+				var rankedListCons = Helpers.Rank(consArray, Document, SequenceSource.Consensus, region).ToList();
 				return rankedListCons.First();
 			}
 
@@ -1241,24 +1218,24 @@ namespace FabLab
 			{
 				var refSeq = ReadFilter.GetAlternativeConsensusSequence(ReadFilter.GetConsensusFromReadsOriginal(Document.NumberedReads), (new Peptide(Document.NumberedTemplates.First().read), Document.NumberedTemplates.First().numbering)).sequence;
 
-				(((Peptide tag, double nDiff) first, (Peptide tag, double nDiff) second, double) tagsWithGap, List<(PeaksPeptideData pep, Peptide, double)> gapFillingPeptides, List<(PeaksPeptideData pep, Peptide, double)> leftExtensions, List<(PeaksPeptideData pep, Peptide, double)> rightExtensions)[] gapfillers = Helpers.Helpers.SelectCandidateFillers(Document.NumberedReads.Select(x => x.read), tags, new Peptide(refSeq), Document.Spectrum.Precursor);
+				(((Peptide tag, double nDiff) first, (Peptide tag, double nDiff) second, double) tagsWithGap, List<(PeaksPeptideData pep, Peptide, double)> gapFillingPeptides, List<(PeaksPeptideData pep, Peptide, double)> leftExtensions, List<(PeaksPeptideData pep, Peptide, double)> rightExtensions)[] gapfillers = Helpers.SelectCandidateFillers(Document.NumberedReads.Select(x => x.read), tags, new Peptide(refSeq), Document.Spectrum.Precursor);
 
 
 				Tolerance innerTol = new Tolerance(Settings.ToleranceInDaGapFillers, Tolerance.ErrorUnit.THOMPSON);
-				List<Peptide> seeds = Helpers.Helpers.FillGapsWithCandidates(gapfillers, innerTol, Document.Spectrum).GroupBy(x => x.GetModifiedSequence()).Select(x => x.First()).ToList();
+				List<Peptide> seeds = Helpers.FillGapsWithCandidates(gapfillers, innerTol, Document.Spectrum).GroupBy(x => x.GetModifiedSequence()).Select(x => x.First()).ToList();
 
 				// gotta number the reads.
-				var numbered = seeds.Select(x => (x, Helpers.Helpers.NumberCdr(region, x.Sequence))).ToArray();
+				var numbered = seeds.Select(x => (x, ImgtNumberer.NumberCdr(region, x.Sequence))).ToArray();
 
 				return numbered;
 			}
 
 			List<(Peptide peptide, double[] numbering)> GetGapFillingReads2()
 			{
-				var precursorMass = HeckLib.chemistry.Proteomics.ConvertAverageMassToMonoIsotopic(Document.Spectrum.PrecursorMass, true) - MassSpectrometry.MassWater;
+				var precursorMass = Proteomics.ConvertAverageMassToMonoIsotopic(Document.Spectrum.PrecursorMass, true) - MassSpectrometry.MassWater;
 
-				double floor = Helpers.Helpers.GetBorders(region).Item1;
-				double ceiling = Helpers.Helpers.GetBorders(region).Item2;
+				double floor = Helpers.GetBorders(region).Item1;
+				double ceiling = Helpers.GetBorders(region).Item2;
 
 				var n = Modification.CreateOffsetMod(0, nFlank.contig.Nterm.Delta + nFlank.contig.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum(), Modification.PositionType.anyNterm, Modification.TerminusType.nterm);
 
@@ -1274,10 +1251,11 @@ namespace FabLab
 					(x.numbering.Min() <= floor && x.numbering.Max() >= ceiling); // spans the region
 				}).GroupBy(x => x.read.Peptide).Select(x => x.First()).Select(x =>
 				{
-					var pep = new Peptide(x.read.Peptide, "");
-
-					pep.Nterm = n;
-					pep.Cterm = c;
+					var pep = new Peptide(x.read.Peptide, "")
+					{
+						Nterm = n,
+						Cterm = c
+					};
 					return (pep, x.numbering);
 				}).ToList();
 
@@ -1296,11 +1274,9 @@ namespace FabLab
 
 		private Peptide GetConsensusPeptide(RegionType region, Peptide nFlank)
 		{
-			var precursorMass = HeckLib.chemistry.Proteomics.ConvertAverageMassToMonoIsotopic(Document.Spectrum.PrecursorMass, true) - MassSpectrometry.MassWater;
+			var precursorMass = Proteomics.ConvertAverageMassToMonoIsotopic(Document.Spectrum.PrecursorMass, true) - MassSpectrometry.MassWater;
 
-			double[] numbering;
-			string sequence;
-			GetConsensusContig(region, out numbering, out sequence);
+			GetConsensusContig(region, out double[] numbering, out string sequence);
 
 			var n = Modification.CreateOffsetMod(0, nFlank.Nterm.Delta + nFlank.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum(), Modification.PositionType.anyNterm, Modification.TerminusType.nterm);
 			var c = Modification.CreateOffsetMod(0, precursorMass - (nFlank.Nterm.Delta + nFlank.Sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum() + sequence.Select(aa => AminoAcid.Get(aa).MonoIsotopicWeight).Sum()), Modification.PositionType.anyCterm, Modification.TerminusType.cterm);
@@ -1325,13 +1301,12 @@ namespace FabLab
 		private void PopulateTemplateListView()
 		{
 			// get all the numbers
-			var numberedTemplates = new List<(Peptide read, double[] numbering)>();
-
-			numberedTemplates.Add((Document.CurrentBestTemplate, Document.CurrentBestTemplateNumbering));
-
-			numberedTemplates.Add((Document.CurrentConsensus, Document.CurrentConsensusNumbering));
-
-			numberedTemplates.Add((Document.CurrentPrediction, Document.CurrentPredictionNumbering));
+			var numberedTemplates = new List<(Peptide read, double[] numbering)>
+			{
+				(Document.CurrentBestTemplate, Document.CurrentBestTemplateNumbering),
+				(Document.CurrentConsensus, Document.CurrentConsensusNumbering),
+				(Document.CurrentPrediction, Document.CurrentPredictionNumbering)
+			};
 
 			numberedTemplates.AddRange(Document.NumberedTemplates.Select(x => (x.read, x.numbering)));
 
@@ -1339,18 +1314,18 @@ namespace FabLab
 			if (templateObjectListView.Objects != null && numberedTemplates.SequenceEqual(templateObjectListView.Objects.Cast<(Peptide read, double[] numbering)>()))
 				return;
 
-			var numbers = Helpers.Helpers.OrderImgtNumbering(numberedTemplates.SelectMany(x => x.numbering));
+			var numbers = Helpers.OrderImgtNumbering(numberedTemplates.SelectMany(x => x.numbering));
 
 			if (templateObjectListView.AllColumns.Count == 0)
 			{
-				Helpers.Helpers.CreateColumn(templateObjectListView, "Name", HorizontalAlignment.Center, delegate (object obj)
+				Helpers.CreateColumn(templateObjectListView, "Name", HorizontalAlignment.Center, delegate (object obj)
 				{
-					var parsed = ((Peptide template, double[] numbering))obj;
+					var (template, numbering) = ((Peptide template, double[] numbering))obj;
 
-					return parsed.template.Name;
+					return template.Name;
 				}, customFilterMenuBuilder: new StringFilterMenuBuilder(), objectsToBe: numberedTemplates.Select(x => (object)x));
 
-				Helpers.Helpers.CreateColumn(templateObjectListView, "Origin", HorizontalAlignment.Center, delegate (object obj)
+				Helpers.CreateColumn(templateObjectListView, "Origin", HorizontalAlignment.Center, delegate (object obj)
 				{
 					var parsed = ((Peptide template, double[] numbering))obj;
 					if (parsed == (Document.CurrentConsensus, Document.CurrentConsensusNumbering))
@@ -1374,20 +1349,20 @@ namespace FabLab
 				templateObjectListView.UseCellFormatEvents = true;
 				templateObjectListView.FormatCell += TemplateObjectListView_FormatCell;
 
-				foreach (var region in Enum.GetValues(typeof(RegionType)))
+				foreach (var region in Helpers.GetAllRegionEnums())
 				{
 					// parse the name
 					RegionType curRegion = (RegionType)region;
 					if (curRegion == RegionType.None)
 						continue;
 
-					var (startImgt, endImgt) = Helpers.Helpers.GetBorders(curRegion);
+					var (startImgt, endImgt) = Helpers.GetBorders(curRegion);
 					var numInRange = numbers.Where(x => x.IsBetweenInclusive(startImgt, endImgt)).ToArray();
-					Helpers.Helpers.CreateColumn(templateObjectListView, Enum.GetName(typeof(RegionType), region), HorizontalAlignment.Left, delegate (Object obj)
+					Helpers.CreateColumn(templateObjectListView, Enum.GetName(typeof(RegionType), region), HorizontalAlignment.Left, delegate (Object obj)
 					{
-						(Peptide template, double[] numbering) parsed = ((Peptide template, double[] numbering))obj;
+						(Peptide template, double[] numbering) = ((Peptide template, double[] numbering))obj;
 
-						char[] charArray = ConvertToGappedString((parsed.template.Sequence, parsed.numbering), curRegion);
+						char[] charArray = ConvertToGappedString((template.Sequence, numbering), curRegion);
 						string sequence = new string(charArray);
 
 						if (sequence == null)
@@ -1447,39 +1422,51 @@ namespace FabLab
 
 			// Set Docking of the Legend chart to the Default Chart Area.
 			chart.Legends[LegendName].DockedToChartArea = "NotSet";
-			Series peaks = new Series($"Peaks ({Math.Round(peaksMin, 3)} - {Math.Round(peaksMax, 3)})");
-			peaks.ChartType = SeriesChartType.Point;
-			peaks.Color = PeaksColor;
-			peaks.Legend = LegendName;
-			peaks.IsVisibleInLegend = true;
-			Series template = new Series($"Template ({Math.Round(templateMin, 3)} - {Math.Round(templateMax, 3)})");
-			template.ChartType = SeriesChartType.Point;
-			template.Color = TemplateColor;
-			template.Legend = LegendName;
-			template.IsVisibleInLegend = true;
-			Series spectrum = new Series($"Spectrum ({Math.Round(spectrumMin, 3)} - {Math.Round(spectrumMax, 3)})");
-			spectrum.ChartType = SeriesChartType.Point;
-			spectrum.Color = SpectrumColor;
-			spectrum.Legend = LegendName;
-			spectrum.IsVisibleInLegend = true;
-			Series conserved = new Series($"Conserved ({Math.Round(conservedMin, 3)} - {Math.Round(conservedMax, 3)})");
-			conserved.ChartType = SeriesChartType.Point;
-			conserved.Color = ConservedColor;
-			conserved.Legend = LegendName;
-			conserved.IsVisibleInLegend = true;
-			Series multi = new Series($"Multi ({Math.Round(multiMin, 3)} - {Math.Round(multiMax, 3)})");
-			multi.ChartType = SeriesChartType.Point;
-			multi.Color = MultiColor;
-			multi.Legend = LegendName;
-			multi.IsVisibleInLegend = true;
+			Series peaks = new Series($"Peaks ({Math.Round(peaksMin, 3)} - {Math.Round(peaksMax, 3)})")
+			{
+				ChartType = SeriesChartType.Point,
+				Color = PeaksColor,
+				Legend = LegendName,
+				IsVisibleInLegend = true
+			};
+			Series template = new Series($"Template ({Math.Round(templateMin, 3)} - {Math.Round(templateMax, 3)})")
+			{
+				ChartType = SeriesChartType.Point,
+				Color = TemplateColor,
+				Legend = LegendName,
+				IsVisibleInLegend = true
+			};
+			Series spectrum = new Series($"Spectrum ({Math.Round(spectrumMin, 3)} - {Math.Round(spectrumMax, 3)})")
+			{
+				ChartType = SeriesChartType.Point,
+				Color = SpectrumColor,
+				Legend = LegendName,
+				IsVisibleInLegend = true
+			};
+			Series conserved = new Series($"Conserved ({Math.Round(conservedMin, 3)} - {Math.Round(conservedMax, 3)})")
+			{
+				ChartType = SeriesChartType.Point,
+				Color = ConservedColor,
+				Legend = LegendName,
+				IsVisibleInLegend = true
+			};
+			Series multi = new Series($"Multi ({Math.Round(multiMin, 3)} - {Math.Round(multiMax, 3)})")
+			{
+				ChartType = SeriesChartType.Point,
+				Color = MultiColor,
+				Legend = LegendName,
+				IsVisibleInLegend = true
+			};
 
 			int i = 0;
 
-			Series massDelta = new Series($"Mass Delta ({Math.Round(massDeltaMin, 3)} - {Math.Round(massDeltaMax, 3)})");
-			massDelta.ChartType = SeriesChartType.Point;
-			massDelta.Color = Color.Black;
-			massDelta.Legend = LegendName;
-			massDelta.IsVisibleInLegend = true;
+			Series massDelta = new Series($"Mass Delta ({Math.Round(massDeltaMin, 3)} - {Math.Round(massDeltaMax, 3)})")
+			{
+				ChartType = SeriesChartType.Point,
+				Color = Color.Black,
+				Legend = LegendName,
+				IsVisibleInLegend = true
+			};
 
 			foreach (var contig in contigs)
 			{
@@ -1762,7 +1749,7 @@ namespace FabLab
 			}).ToArray();
 			var range = OLVDoublePrompt.ShowDialog(0, viableCombos2.Select(x => x.seq.Length).Max()).Select(x => (int)x).ToArray();
 
-			var ranked = Helpers.Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document, Document.Locus, range);
+			var ranked = Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document, Document.Locus, range);
 			Document.Predictions = ranked;
 			if (ranked.Where(x => x.contig == null).Any())
 			{
@@ -1771,7 +1758,7 @@ namespace FabLab
 				var minRank = empty.Select(x => x.sumR).Min();
 				foreach (var item in empty)
 				{
-					System.Diagnostics.Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.spectrum}");
+					Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.spectrum}");
 				}
 				MessageBox.Show($"Found and discarded empty contigs (N = {c}, minrank = {minRank})");
 				Document.Predictions = ranked.Where(x => x.contig != null).ToArray();
@@ -1785,15 +1772,15 @@ namespace FabLab
 			var olv = (ObjectListView)cm.GetContextMenu().SourceControl;
 
 			RegionType region = (RegionType)olv.Tag;
-			recombineAdjacent(region);
+			RecombineAdjacentInner(region);
 		}
 
-		private ObjectListView recombineAdjacent(RegionType region)
+		private ObjectListView RecombineAdjacentInner(RegionType region)
 		{
-			if (!Helpers.Helpers.IsCdr(region))
+			if (!Helpers.IsCdr(region))
 				return null;
 
-			var flanking = Helpers.Helpers.GetFlanking(region);
+			var flanking = Helpers.GetFlanking(region);
 
 			List<List<RankedContig>> toRecomb = new List<List<RankedContig>>()
 			{
@@ -1900,7 +1887,7 @@ namespace FabLab
 			}).ToArray();
 			var range = OLVDoublePrompt.ShowDialog(0, viableCombos2.Select(x => x.seq.Length).Max()).Select(x => (int)x).ToArray();
 
-			var ranked = Helpers.Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document, Document.Locus, range);
+			var ranked = Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document, Document.Locus, range);
 
 			if (ranked.Where(x => x.contig == null).Any())
 			{
@@ -1909,7 +1896,7 @@ namespace FabLab
 				var minRank = empty.Select(x => x.sumR).Min();
 				foreach (var item in empty)
 				{
-					System.Diagnostics.Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.spectrum}");
+					Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.spectrum}");
 				}
 				MessageBox.Show($"Found and discarded empty contigs (N = {c}, minrank = {minRank})");
 				ranked = ranked.Where(x => x.contig != null).ToArray();
@@ -1950,7 +1937,7 @@ namespace FabLab
 
 		private void SetCurrentSelection(RegionType curRegion, RankedContig checkedContig)
 		{
-			if (!SelectedContigs.TryGetValue(curRegion, out RankedContig previousContig))
+			if (!SelectedContigs.TryGetValue(curRegion, out RankedContig _))
 				SelectedContigs.Add(curRegion, checkedContig);
 			else
 				SelectedContigs[curRegion] = checkedContig;
@@ -1958,10 +1945,10 @@ namespace FabLab
 
 		private void FillIfCdr(RegionType curRegion)
 		{
-			if (!Helpers.Helpers.IsCdr(curRegion))
+			if (!Helpers.IsCdr(curRegion))
 				return;
 
-			var (nFlankRegion, cFlankRegion) = Helpers.Helpers.GetFlanking(curRegion);
+			var (nFlankRegion, cFlankRegion) = Helpers.GetFlanking(curRegion);
 
 			var nFlankIsEmpty = !SelectedContigs.TryGetValue(nFlankRegion, out RankedContig nFlank);
 			var cFlankIsEmpty = !SelectedContigs.TryGetValue(cFlankRegion, out RankedContig cFlank);
@@ -1989,10 +1976,10 @@ namespace FabLab
 
 		private void FillIfCdr(RegionType curRegion, RankedContig nFlank, RankedContig cFlank)
 		{
-			if (!Helpers.Helpers.IsCdr(curRegion))
+			if (!Helpers.IsCdr(curRegion))
 				return;
 
-			var (nFlankRegion, cFlankRegion) = Helpers.Helpers.GetFlanking(curRegion);
+			var (nFlankRegion, cFlankRegion) = Helpers.GetFlanking(curRegion);
 			
 			var contigs = FillersFromFlanks(nFlank, cFlank, curRegion);
 
@@ -2019,8 +2006,8 @@ namespace FabLab
 				return;
 			}
 
-			double floor = Helpers.Helpers.GetBorders(curRegion).Item1;
-			double ceiling = Helpers.Helpers.GetBorders(curRegion).Item2;
+			double floor = Helpers.GetBorders(curRegion).Item1;
+			double ceiling = Helpers.GetBorders(curRegion).Item2;
 			(PeaksPeptideData Peptide, double[] numbering)[] reads = Document.NumberedReads.Where(x =>
 			{
 				return x.numbering.Min().IsBetweenInclusive(floor, ceiling) || x.numbering.Max().IsBetweenInclusive(floor, ceiling) ||
@@ -2031,7 +2018,6 @@ namespace FabLab
 			var consensus = ReadFilter.GetConsensusFromReadsOriginal(numbered).Where(x => x.frequencies.Count != 0).ToList();
 
 			double[] numbering = new double[0];
-			var adjustedSequence = "";
 			var sequence = "";
 
 			if (SelectedContigs.TryGetValue(curRegion, out RankedContig middle))
@@ -2055,8 +2041,8 @@ namespace FabLab
 				return;
 			}
 
-			double floor = Helpers.Helpers.GetBorders(curRegion).Item1;
-			double ceiling = Helpers.Helpers.GetBorders(curRegion).Item2;
+			double floor = Helpers.GetBorders(curRegion).Item1;
+			double ceiling = Helpers.GetBorders(curRegion).Item2;
 			(PeaksPeptideData Peptide, double[] numbering)[] reads = Document.NumberedReads.Where(x =>
 			{
 				return x.numbering.Min().IsBetweenInclusive(floor, ceiling) || x.numbering.Max().IsBetweenInclusive(floor, ceiling) ||
@@ -2066,7 +2052,6 @@ namespace FabLab
 			var numbered = Document.ReadFilter.GetNumberingAndAlignmentForReadsDynamicProgramming(reads.Select(x => x.Peptide).ToArray(), Document.CurrentPrediction).Select(x => (x.read.Peptide, x.numbering)).ToArray();
 
 			double[] numbering = new double[0];
-			var adjustedSequence = "";
 			var sequence = "";
 
 			if (SelectedContigs.TryGetValue(curRegion, out RankedContig middle))
@@ -2074,10 +2059,10 @@ namespace FabLab
 				numbering = middle.numbering;
 				sequence = middle.contig.Sequence;
 
-				if (Helpers.Helpers.IsCdr(curRegion))
+				if (Helpers.IsCdr(curRegion))
 				{
 					// we want to add some adjacent residues
-					var flanking = Helpers.Helpers.GetFlanking(curRegion);
+					var flanking = Helpers.GetFlanking(curRegion);
 					if (SelectedContigs.TryGetValue(flanking.Item1, out RankedContig fr1))
 					{
 						var nums = fr1.numbering.Last(6).ToList();
@@ -2126,7 +2111,6 @@ namespace FabLab
 
 			// one point per residue per hit. a residue in a subseq of 5 gets 5 + 4 + 3 + 2 + 1 points
 			var matchesPerSizePerRes = new Dictionary<int, Dictionary<int, List<((string, double[]), (int, string))>>>();
-			bool anyMatchingReads = true;
 			(int resIdx, int matchSize)[] pepIdxLen = new (int, int)[reads.Length];
 			var innerReads = reads.Select((x, i) => (x.sequence, x.numbering, i)).ToArray();
 			int size = 6;
@@ -2194,13 +2178,13 @@ namespace FabLab
 			}
 			for (int j = 0; j < pepIdxLen.Length; j++)
 			{
-				var result = pepIdxLen[j];
-				if (result.matchSize != 0)
+				var (resIdx, matchSize) = pepIdxLen[j];
+				if (matchSize != 0)
 				{
-					int idx = result.Item1;
+					int idx = resIdx;
 					int n = 0;
-					int c = result.matchSize;
-					for (int i = 0; i < result.matchSize; i++)
+					int c = matchSize;
+					for (int i = 0; i < matchSize; i++)
 					{
 						coverages[idx + i].Add(new Coverage
 						{
@@ -2250,7 +2234,7 @@ namespace FabLab
 					{
 						float intensity = asm.Spectrum.Peaks[i].Intensity;
 
-						return (Intensity: intensity, position: x != null ? x.Position : -1, terminus: x == null ? HeckLib.chemistry.Proteomics.Terminus.None : x.Terminus, x, asm.Spectrum.Peaks[i]);
+						return (Intensity: intensity, position: x != null ? x.Position : -1, terminus: x == null ? Proteomics.Terminus.None : x.Terminus, x, asm.Spectrum.Peaks[i]);
 					}).ToList();
 
 					var nSeries = new Series("N Terminal");
@@ -2267,9 +2251,9 @@ namespace FabLab
 						startOffset++;
 						endOffset++;
 						j++;
-						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> nMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == HeckLib.chemistry.Proteomics.Terminus.N);
+						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> nMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == Proteomics.Terminus.N);
 						IEnumerable<float> matchedPeakIntensitiesN = nMatches.Select(y => y.Intensity).ToArray();
-						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> cMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == HeckLib.chemistry.Proteomics.Terminus.C);
+						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> cMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == Proteomics.Terminus.C);
 						IEnumerable<float> matchedPeakIntensitiesC = cMatches.Select(y => y.Intensity).ToArray();
 
 						float maxIntMatchedC = matchedPeakIntensitiesC.Any() ? matchedPeakIntensitiesC.Max() : 0.00f;
@@ -2285,9 +2269,9 @@ namespace FabLab
 					foreach (var item in asm.Match.Sequence)
 					{
 						j++;
-						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> nMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == HeckLib.chemistry.Proteomics.Terminus.N);
+						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> nMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == Proteomics.Terminus.N);
 						IEnumerable<float> matchedPeakIntensitiesN = nMatches.Select(y => y.Intensity).ToArray();
-						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> cMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == HeckLib.chemistry.Proteomics.Terminus.C);
+						IEnumerable<(float Intensity, int position, Proteomics.Terminus terminus, PeptideFragment x, HeckLib.Centroid)> cMatches = matchesWithIntensity.Where(y => y.position == j && y.terminus == Proteomics.Terminus.C);
 						IEnumerable<float> matchedPeakIntensitiesC = cMatches.Select(y => y.Intensity).ToArray();
 
 						//double relMatchedIntSumC = matchedPeakIntensitiesC.Any() ? matchedPeakIntensitiesC.Sum() : 0.00;
@@ -2323,7 +2307,7 @@ namespace FabLab
 				chart.ChartAreas.Clear();
 				chart.Series.Clear();
 				chart.Legends.Clear();
-				//MessageBox.Show($@"Error building chart {curRegion}: {err.Message}");
+				Log.Logger.Log(NLog.LogLevel.Trace, $"Could not draw spectrum support chart. Error: {err.Message}");
 			}
 		}
 
@@ -2348,7 +2332,6 @@ namespace FabLab
 				chart.ChartAreas.Add(a);
 
 				var xs = Enumerable.Range(0, numbering.Length).ToArray();
-				int initSize = 6;
 
 				Colormap colormapC = new Colormap(Color.Red, Color.Yellow, 256);
 				Color Green = Color.FromArgb(0, 255, 255);
@@ -2429,54 +2412,6 @@ namespace FabLab
 
 				biggerIcons(chart, nSeries);
 				biggerIcons(chart, cSeries);
-				//chart.Series[lab].Color = color;
-				//chart.Series[lab].Points.DataBindXY(xs, ys);
-
-				//int[] ys = null;
-				//bool isCterminus = true;
-				//for (int multiplier = -1; multiplier < 2; multiplier += 2)
-				//{
-				//	for (int sizeIdx = 1; sizeIdx <= max; sizeIdx++)
-				//	{
-				//		int size = initSize + sizeIdx;
-				//		Color color = colorMapper.GetColor(sizeIdx);
-
-				//		string lab = "";
-
-				//		if (isCterminus)
-				//		{
-				//			ys = Coverages.Select(x => x.Where(y => y.C == sizeIdx).Select(z => z.C).Count() * multiplier).ToArray();
-				//		}
-				//		else
-				//		{
-				//			ys = Coverages.Select(x => x.Where(y => y.N == sizeIdx).Select(z => z.N).Count()).ToArray();
-				//		}
-
-				//		if (isCterminus)
-				//		{
-				//			lab = "C-terminal coverage score (weighted by total length) by " + (sizeIdx).ToString() + " residues";
-				//		}
-				//		else
-				//		{
-				//			lab = "N-terminal coverage score (weighted by total length) by " + (sizeIdx).ToString() + " residues";
-				//		}
-
-				//		chart.Series.Add(new Series(lab));
-				//		chart.Series.Last().IsVisibleInLegend = true;
-				//		chart.Series.Last().Legend = LegendName;
-				//		chart.Series[lab].ChartType = SeriesChartType.StackedColumn;
-				//		chart.Series[lab].Color = color;
-				//		chart.Series[lab].Points.DataBindXY(xs, ys);
-
-				//		foreach (DataPoint dp in chart.Series[lab].Points)
-				//		{
-				//			dp.ToolTip = lab + ": " + "#VALY";
-				//		}
-				//	}
-				//	colorMapper = colorMapperN;
-				//	isCterminus = false;
-				//}
-
 
 				for (int j = 0; j < seq.Length; j++)
 				{
@@ -2491,20 +2426,25 @@ namespace FabLab
 			{
 				chart.ChartAreas.Clear();
 				chart.Series.Clear();
+				Log.Logger.Log(NLog.LogLevel.Trace, $"Could not draw multichart support chart. Error: {err.Message}");
 			}
 
 			void biggerIcons(Chart chart1, Series series)
 			{
 				LegendItem legendItem = new LegendItem();
-				LegendCell cell1 = new LegendCell();
-				cell1.Name = "cell1";
-				cell1.Text = series.LegendText;
+				LegendCell cell1 = new LegendCell
+				{
+					Name = "cell1",
+					Text = series.LegendText
+				};
 				// here you can specify alignment, color, ..., too
-				LegendCell cell2 = new LegendCell();
-				cell2.Name = "cell2";
-				cell2.CellType = LegendCellType.SeriesSymbol;
-				cell2.SeriesSymbolSize = new Size(400, 100);
-				cell2.Margins = new Margins(30, 30, 30, 30);
+				LegendCell cell2 = new LegendCell
+				{
+					Name = "cell2",
+					CellType = LegendCellType.SeriesSymbol,
+					SeriesSymbolSize = new Size(400, 100),
+					Margins = new Margins(30, 30, 30, 30)
+				};
 				cell1.Margins = new Margins(30, 30, 30, 30);
 				legendItem.Color = series.Color;
 				legendItem.BackGradientStyle = series.BackGradientStyle;
@@ -2515,78 +2455,6 @@ namespace FabLab
 				legendItem.SeriesName = series.Name;
 				legendItem.ToolTip = series.LegendToolTip;
 				chart1.Legends[LegendName].CustomItems.Add(legendItem);
-			}
-		}
-
-		private void DrawMultiChartOld(List<List<((string, double[]), (int, string))>>[] consensus, double[] numbering, string sequence, Chart chart)
-		{
-			chart.ChartAreas.Clear();
-			chart.Series.Clear();
-			chart.Legends.Clear();
-
-
-			try
-			{
-				chart.Legends.Add(new Legend(LegendName));
-				chart.Legends[LegendName].Enabled = false;
-				ChartArea a = new ChartArea();
-				var startOffset = -0.5;
-				var endOffset = 0.5;
-				a.CursorX.IsUserSelectionEnabled = true;
-				a.CursorY.IsUserSelectionEnabled = true;
-				//a.AxisX.Minimum = -1;
-				//a.AxisX.Maximum = middle.numbering.Count();
-				a.AxisX.LabelStyle.Angle = -45;
-				a.AxisX.IsLabelAutoFit = false;
-				chart.Legends[LegendName].DockedToChartArea = "NotSet";
-				//a.AxisY.Minimum = 0;
-				//a.AxisY.Maximum = 1;
-				chart.ChartAreas.Add(a);
-
-				var nums = consensus;
-				var xs = Enumerable.Range(0, numbering.Length).ToArray();
-				int initSize = 6;
-				int resIdx = 0;
-				Colormap colormap = new Colormap(Colormap.HEAT);
-				double max = (double)nums.First().Count;
-				for (int sizeIdx = 0; sizeIdx < nums.First().Count - 1; sizeIdx++)
-				{
-					// Color color = aaColorScheme[sizeIdx];
-
-					Color color = Color.FromArgb(colormap.getColor((int)(((double)sizeIdx / max) * (colormap.getNrColors() - 1))));
-
-					int[] ys = nums.Select(x => x[resIdx].Count()/* - x[resIdx + 1].Count()*/).ToArray();
-					var lab = "# of " + (sizeIdx + initSize).ToString() + "mers";
-					chart.Series.Add(new Series(lab));
-					chart.Series.Last().IsVisibleInLegend = true;
-					chart.Series.Last().Legend = LegendName;
-					chart.Series[lab].ChartType = SeriesChartType.StackedColumn;
-					chart.Series[lab].Color = color;
-					chart.Series[lab].Points.DataBindXY(xs, ys);
-					int j = 0;
-					foreach (DataPoint dp in chart.Series[lab].Points)
-					{
-						var res = sequence[j];
-						dp.ToolTip = lab + " " + "#VALY";
-						j++;
-					}
-					resIdx++;
-				}
-
-				for (int j = 0; j < numbering.Length; j++)
-				{
-					var res = sequence[j];
-					var num = numbering[j];
-					CustomLabel label = new CustomLabel(startOffset, endOffset, new string(new char[] { res }), 0, LabelMarkStyle.None);
-					a.AxisX.CustomLabels.Add(label);
-					startOffset++;
-					endOffset++;
-				}
-			}
-			catch (Exception err)
-			{
-				chart.ChartAreas.Clear();
-				chart.Series.Clear();
 			}
 		}
 
@@ -2673,7 +2541,7 @@ namespace FabLab
 			{
 				chart.ChartAreas.Clear();
 				chart.Series.Clear();
-				//MessageBox.Show($@"Error building chart {curRegion}: {err.Message}");
+				Log.Logger.Log(NLog.LogLevel.Trace, $"Could not draw germline support support chart. Error: {err.Message}");
 			}
 		}
 
@@ -2681,10 +2549,8 @@ namespace FabLab
 		{
 
 			List<(double number, List<(char residue, int count)>)> consensus = ReadFilter.GetConsensusFromReads(Document.NumberedTemplates);
-			double[] numbering = new double[0];
-			var adjustedSequence = "";
-			var sequence = "";
-
+			string sequence;
+			double[] numbering;
 			if (SelectedContigs.TryGetValue(curRegion, out RankedContig middle))
 			{
 				numbering = middle.numbering;
@@ -2702,27 +2568,27 @@ namespace FabLab
 
 		private void GetConsensusContig(RegionType curRegion, out double[] numbering, out string sequence)
 		{
-			var borders = Helpers.Helpers.GetBorders(curRegion);
+			var borders = Helpers.GetBorders(curRegion);
 			var floor = borders.Item1;
 			var ceiling = borders.Item2;
 
 			var seqDict = Document.Consensus.Where(x => x.number.IsBetweenInclusive(floor, ceiling)).ToDictionary(x => x.number, x => x.Item2.OrderByDescending(z => z.count).Select(y => y.residue).First());
-			numbering = Helpers.Helpers.OrderImgtNumbering(Document.Consensus.Where(x => x.number.IsBetweenInclusive(floor, ceiling)).Select(x => x.number));
+			numbering = Helpers.OrderImgtNumbering(Document.Consensus.Where(x => x.number.IsBetweenInclusive(floor, ceiling)).Select(x => x.number));
 			sequence = new string(numbering.Select(x => seqDict[x]).ToArray());
 		}
 
 		private void DrawConservationSupportChart(RegionType curRegion)
 		{
-			string csvPath = Helpers.Helpers.GetProbabilityDistribution(Document.Locus);
+			string csvPath = Helpers.GetProbabilityDistribution(Document.Locus);
 
 			var chart = GetContigConservationChart(curRegion);
 
 
 
 			List<(double number, List<(char residue, int count)>)> consensus = ReadFilter.ReadProbabilityDistributionFromCsv(csvPath);
-			double[] numbering = new double[0];
-			var sequence = "";
-
+			
+			string sequence;
+			double[] numbering;
 			if (SelectedContigs.TryGetValue(curRegion, out RankedContig middle))
 			{
 				numbering = middle.numbering;
@@ -2747,14 +2613,14 @@ namespace FabLab
 			return contigCharts[curRegion][1];
 		}
 
-		private Chart GetContigConservationChart(RegionType curRegion)
-		{
-			return contigCharts[curRegion][3];
-		}
-
 		private Chart GetContigSpectrumChart(RegionType curRegion)
 		{
 			return contigCharts[curRegion][2];
+		}
+
+		private Chart GetContigConservationChart(RegionType curRegion)
+		{
+			return contigCharts[curRegion][3];
 		}
 
 		private Chart GetContigMultiChart(RegionType curRegion)
@@ -2764,10 +2630,10 @@ namespace FabLab
 
 		private void SetBestTemplate()
 		{
-			if (Document.Locus == ImgtFilterLib.LociEnum.TBD)
-				Document.Locus = Helpers.Helpers.GetLocusEnum(Document.Templates.Last().Name);
+			if (Document.Locus == LociEnum.TBD)
+				Document.Locus = Helpers.GetLocusEnum(Document.Templates.Last().Name);
 
-			ImgtFilterLib.LociEnum chain = Document.Locus;
+			LociEnum chain = Document.Locus;
 
 			var seq = "";
 			var names = "";
@@ -2805,11 +2671,11 @@ namespace FabLab
 				if (!options.Any())
 					continue;
 
-				var innerSeq = Helpers.Helpers.GetSequence(Document.CurrentPrediction.Sequence, Document.CurrentPredictionNumbering, curRegion, chain, out double[] nums);
+				var innerSeq = Helpers.GetSequence(Document.CurrentPrediction.Sequence, Document.CurrentPredictionNumbering, curRegion, chain, out double[] nums);
 
 				if (innerSeq == "")
 				{
-					innerSeq = Helpers.Helpers.GetSequence(Document.NumberedTemplates.First().read.Sequence, Document.NumberedTemplates.First().numbering, curRegion, chain, out nums);
+					innerSeq = Helpers.GetSequence(Document.NumberedTemplates.First().read.Sequence, Document.NumberedTemplates.First().numbering, curRegion, chain, out nums);
 				}
 
 				var bestMatch = PsrmLib.Scoring.Alignment.FindBestMatch(innerSeq, options.Select(x => x.Item2), alignerConstructor: () =>
@@ -2863,7 +2729,7 @@ namespace FabLab
 
 		private void refreshToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-			Refresh();
+			Reload();
 		}
 
 		private void fromSavedResultsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2882,7 +2748,7 @@ namespace FabLab
 				propertyGrid.SelectedObject = Settings;
 			}
 
-			Refresh();
+			Reload();
 		}
 
 		private void fromInputClassToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2908,9 +2774,9 @@ namespace FabLab
 				propertyGrid.SelectedObject = Settings;
 			}
 
-			Refresh();
+			Reload();
 
-			foreach (var region in Enum.GetValues(typeof(RegionType)))
+			foreach (var region in Helpers.GetAllRegionEnums())
 			{
 				RegionType curRegion = (RegionType)region;
 				if (curRegion == RegionType.None)
@@ -2956,16 +2822,16 @@ namespace FabLab
 
 			switch (Document.Locus)
 			{
-				case ImgtFilterLib.LociEnum.Kappa:
+				case LociEnum.Kappa:
 					chainName = "K";
 					break;
-				case ImgtFilterLib.LociEnum.Lambda:
+				case LociEnum.Lambda:
 					chainName = "L";
 					break;
-				case ImgtFilterLib.LociEnum.Heavy:
+				case LociEnum.Heavy:
 					chainName = "H";
 					break;
-				case ImgtFilterLib.LociEnum.TBD:
+				case LociEnum.TBD:
 					break;
 				default:
 					break;
@@ -2977,7 +2843,6 @@ namespace FabLab
 			{
 				case ImgtFilterLib.Enums.RegionEnum.VRegion:
 					toReturn = entries.Where(x => Regex.IsMatch(x.Key, $@"IG{chainName}V"));
-					break;
 					break;
 				case ImgtFilterLib.Enums.RegionEnum.DRegion:
 					toReturn = entries.Where(x => Regex.IsMatch(x.Key, $@"IG{chainName}D"));
@@ -3011,17 +2876,21 @@ namespace FabLab
 			{
 				var curTab = new TabPage(Enum.GetName(typeof(RegionType), region));
 				scoreTabControl.TabPages.Add(curTab);
-				curSplit = new SplitContainer();
-				//curSplit.SplitterDistance = 700;
-				curSplit.Parent = curTab;
-				curSplit.Dock = DockStyle.Fill;
+				curSplit = new SplitContainer
+				{
+					//curSplit.SplitterDistance = 700;
+					Parent = curTab,
+					Dock = DockStyle.Fill
+				};
 				ScoreSplits.Add(region, curSplit);
 				curSplit.FixedPanel = FixedPanel.Panel2;
 
 				// charts
-				Chart c = new Chart();
-				c.Dock = DockStyle.Fill;
-				c.Parent = curSplit.Panel2;
+				Chart c = new Chart
+				{
+					Dock = DockStyle.Fill,
+					Parent = curSplit.Panel2
+				};
 				scoreCharts.Add(region, c);
 				ControlsWithDockedCharts.Add(curSplit.Panel2, c);
 				c.MouseDoubleClick += C_MouseDoubleClick;
@@ -3135,12 +3004,9 @@ namespace FabLab
 		{
 			var cm = (MenuItem)sender;
 			var olv = (ObjectListView)cm.GetContextMenu().SourceControl;
-			var item = (RankedContig)cm.GetContextMenu().Tag;
-
-			string csv = string.Empty;
 			var olvExporter = new OLVExporter(olv,
 			olv.FilteredObjects);
-			csv = olvExporter.ExportTo(OLVExporter.ExportFormat.CSV);
+			string csv = olvExporter.ExportTo(OLVExporter.ExportFormat.CSV);
 
 
 			var sfd = new SaveFileDialog()
@@ -3179,8 +3045,8 @@ namespace FabLab
 				{
 					try
 					{
-						using (System.IO.StreamWriter file =
-							new System.IO.StreamWriter(sfd.FileName))
+						using (StreamWriter file =
+							new StreamWriter(sfd.FileName))
 						{
 							string name = Path.GetFileNameWithoutExtension(sfd.FileName);
 							int i = 0;
@@ -3241,7 +3107,7 @@ namespace FabLab
 				}
 				else
 				{
-					var (nFlankRegion, cFlankRegion) = Helpers.Helpers.GetFlanking(curRegion);
+					var (nFlankRegion, cFlankRegion) = Helpers.GetFlanking(curRegion);
 
 					toReprocess.Add(nFlankRegion);
 					toReprocess.Add(cFlankRegion);
@@ -3262,7 +3128,7 @@ namespace FabLab
 					DrawSpectrumSupportChart(reg);
 					DrawConservationSupportChart(reg);
 				}
-				Refresh();
+				Reload();
 			}
 			catch (Exception er)
 			{
@@ -3307,7 +3173,7 @@ namespace FabLab
 
 				Document.ClipAndRank(new Peptide[] { pep });
 				UpdateSessionClippedContigs(curRegion);
-				Refresh();
+				Reload();
 			}
 			catch (Exception er)
 			{
@@ -3373,9 +3239,11 @@ namespace FabLab
 				olv.CellRightClick += ContigOlvCellRightClick;
 
 				// charts
-				var tc = new TabControl();
-				tc.Parent = parent.Panel2;
-				tc.Dock = DockStyle.Fill;
+				var tc = new TabControl
+				{
+					Parent = parent.Panel2,
+					Dock = DockStyle.Fill
+				};
 				tc.TabPages.Add(new TabPage("Peaks"));
 				tc.TabPages.Add(new TabPage("Template"));
 				tc.TabPages.Add(new TabPage("Spectrum"));
@@ -3385,9 +3253,11 @@ namespace FabLab
 				List<Chart> cList = new List<Chart>(4);
 				foreach (var tabPage in tc.TabPages)
 				{
-					Chart c = new Chart();
-					c.Dock = DockStyle.Fill;
-					c.Parent = (TabPage)tabPage;
+					Chart c = new Chart
+					{
+						Dock = DockStyle.Fill,
+						Parent = (TabPage)tabPage
+					};
 					cList.Add(c);
 					c.MouseDoubleClick += C_MouseDoubleClick;
 					ControlsWithDockedCharts.Add((TabPage)tabPage, c);
@@ -3509,10 +3379,12 @@ namespace FabLab
 
 			var tabPage = MakeClosableTab(title, mainTabControl);
 
-			var split = new SplitContainer();
-			split.SplitterDistance = 700;
-			split.Parent = tabPage;
-			split.Dock = DockStyle.Fill;
+			var split = new SplitContainer
+			{
+				SplitterDistance = 700,
+				Parent = tabPage,
+				Dock = DockStyle.Fill
+			};
 			// create the olv and columns
 
 			ObjectListView predictionOlv = new ObjectListView()
@@ -3534,7 +3406,7 @@ namespace FabLab
 
 			IEnumerable<object> objectsToBe = predictions.Select(x => (object)x);
 			AddColumns(predictions, predictionOlv);
-			Helpers.Helpers.CreateColumn(predictionOlv, "massDelta", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(predictionOlv, "massDelta", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				if (parsed.contig.Cterm == null)
@@ -3546,7 +3418,7 @@ namespace FabLab
 				}
 			}, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			predictionOlv.AllColumns.Last().IsVisible = false;
-			Helpers.Helpers.CreateColumn(predictionOlv, "mass Delta No Termini", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(predictionOlv, "mass Delta No Termini", HorizontalAlignment.Left, delegate (Object obj)
 			{
 				var parsed = (RankedContig)obj;
 				if (parsed.contig.Cterm == null)
@@ -3571,9 +3443,11 @@ namespace FabLab
 			predictionOlv.CellRightClick += ContigOlvCellRightClick;
 
 			// charts
-			var tc = new TabControl();
-			tc.Parent = split.Panel2;
-			tc.Dock = DockStyle.Fill;
+			var tc = new TabControl
+			{
+				Parent = split.Panel2,
+				Dock = DockStyle.Fill
+			};
 			tc.TabPages.Add(new TabPage("Scatter"));
 			tc.TabPages.Add(new TabPage("Multi"));
 
@@ -3581,9 +3455,11 @@ namespace FabLab
 
 			foreach (var page in tc.TabPages)
 			{
-				Chart c = new Chart();
-				c.Parent = (TabPage)page;
-				c.Dock = DockStyle.Fill;
+				Chart c = new Chart
+				{
+					Parent = (TabPage)page,
+					Dock = DockStyle.Fill
+				};
 				c.MouseDoubleClick += C_MouseDoubleClick;
 				ControlsWithDockedCharts.Add((TabPage)page, c);
 			}
@@ -3622,7 +3498,7 @@ namespace FabLab
 				predictions[i].contig = predictions[i].contig.ShiftPeptideToOptimum(Document.Spectrum, Document.ScoringModel);
 			}
 
-			predictions = Helpers.Helpers.RankFullLength(predictions.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document, Document.Locus, range);
+			predictions = Helpers.RankFullLength(predictions.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document, Document.Locus, range);
 
 			ShowPredictionsView(predictions, range, "Refined predictions");
 		}
@@ -3636,7 +3512,7 @@ namespace FabLab
 			try
 			{
 				//if (olv.FocusedObject != null)
-				object selected = olv.GetSelectedObject();
+				object selected = olv.SelectedObject;
 				if (selected != null)
 				{
 					item = (RankedContig)selected;
@@ -3648,6 +3524,7 @@ namespace FabLab
 			}
 			catch (Exception e2)
 			{
+				Log.Logger.Log(NLog.LogLevel.Trace, $"Could convert the selected object to a contig. Error: {e2.Message}");
 				return;
 			}
 
@@ -3720,15 +3597,14 @@ namespace FabLab
 		/// <returns></returns>
 		private char[] ConvertToGappedString((string template, double[] numbering) parsed, RegionType region, bool overrideIt = false)
 		{
-			char[] gapped;
 
-			if (!overrideIt && GappedSequences.TryGetValue((parsed, region), out gapped))
+			if (!overrideIt && GappedSequences.TryGetValue((parsed, region), out char[] gapped))
 			{
 				return gapped;
 			}
 
 			var contigs = GetSessionClippedContigs(region);
-			var numInRange = Helpers.Helpers.OrderImgtNumbering(contigs.SelectMany(x => x.numbering).ToArray());
+			var numInRange = Helpers.OrderImgtNumbering(contigs.SelectMany(x => x.numbering).ToArray());
 
 			gapped = ConvertToGappedString(parsed, numInRange);
 
@@ -3866,7 +3742,7 @@ namespace FabLab
 			{
 				foreach (var curRegion in cdrs)
 				{
-					var olv = recombineAdjacent(curRegion);
+					var olv = RecombineAdjacentInner(curRegion);
 
 					string csv = string.Empty;
 					var olvExporter = new OLVExporter(olv,
@@ -3884,12 +3760,9 @@ namespace FabLab
 			if (dr == DialogResult.Yes)
 			{
 				var olv = recombineAll();
-
-
-				string csv = string.Empty;
 				var olvExporter = new OLVExporter(olv,
 				olv.FilteredObjects);
-				csv = olvExporter.ExportTo(OLVExporter.ExportFormat.CSV);
+				string csv = olvExporter.ExportTo(OLVExporter.ExportFormat.CSV);
 
 				using (StreamWriter sw = new StreamWriter(folder + "chains.csv"))
 				{

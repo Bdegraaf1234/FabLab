@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net48</TargetFramework>
 		<IncludeSymbols>false</IncludeSymbols>
-		<SuppressDependenciesWhenPacking >true</SuppressDependenciesWhenPacking>
+		<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Configurations>Debug;Release;Local;LocalCi</Configurations>
 		<PackageOutputPath>$(ProjectDir)..\nuget</PackageOutputPath>
@@ -27,4 +27,7 @@
 	<PropertyGroup>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);GetMyPackageFiles</TargetsForTfmSpecificBuildOutput>
 	</PropertyGroup>
+	<ItemGroup>
+	  <None Include="..\.editorconfig" Link=".editorconfig" />
+	</ItemGroup>
 </Project>
