@@ -1,6 +1,5 @@
 {
 "Name": "F59 IgA CDRs (stage 3)",
-"Locus": 0,
 "TemplatePath": "evidence\\germline_templates.fasta",
 "ContaminantsPath": "evidence\\contaminant_chains.fasta",
 "PeaksPath": "evidence\\de_novo_reads.csv",

@@ -28,7 +28,7 @@ using Wexman.Design;
 
 namespace FabLab
 {
-    public class Document
+	public class Document
     {
         #region constants
         
@@ -386,22 +386,18 @@ namespace FabLab
 
         public class Input
 		{
-            //public double Mass;
-            // root file folder
             public string Name = "FabLab";
             public string Root = "";
-            public LociEnum Locus;
             public string TemplatePath;
             public string ContaminantsPath;
             public string PeaksPath;
             public string SpectrumPath;
             public string ContigPath;
 
-			public Input(string name, string root, LociEnum locus, string templatePath, string contaminantsPath, string peaksPath, string spectrumPath, string contigPath)
+			public Input(string name, string root, string templatePath, string contaminantsPath, string peaksPath, string spectrumPath, string contigPath)
 			{
 				Name = name;
 				Root = root;
-				Locus = locus;
 				TemplatePath = templatePath;
 				ContaminantsPath = contaminantsPath;
                 PeaksPath = peaksPath;
@@ -844,8 +840,7 @@ namespace FabLab
             else
                 return null;
 
-            var locus = LociEnum.Kappa;
-			var input = new Input("fablab", Path.GetDirectoryName(ofd.FileName), locus, templatePath, contaminantsPath, peaksPath, spectrumPath, contigPath);
+			var input = new Input("fablab", Path.GetDirectoryName(ofd.FileName), templatePath, contaminantsPath, peaksPath, spectrumPath, contigPath);
 
             var sfd = new SaveFileDialog();
             sfd.DefaultExt = "flconfig";
@@ -862,7 +857,11 @@ namespace FabLab
 
         public static Document LoadFromInputClassPath(string inputPath, Settings settings)
         {
-            return LoadFromInputClass(JsonUtils.Read<Input>(inputPath), settings);
+			Input input = JsonUtils.Read<Input>(inputPath);
+			if (input.Root == string.Empty)
+                input.Root = Path.GetDirectoryName(inputPath);
+			
+            return LoadFromInputClass(input, settings);
         }
 
         /// <summary>
@@ -919,7 +918,7 @@ namespace FabLab
 			AddConsensusToDoc(doc);
 
 			doc.ClipAndRank();
-
+            doc.Title = input.Name;
 			return doc;
 		}
 
@@ -1128,7 +1127,7 @@ namespace FabLab
         /// Path to embedded IMGT amino acid frequency table for Kappa light chains
         /// </summary>
         public static string IgKProbabilityDistributionPath { get => ParseResource(IgKProbabilityDistribution); }
-        private const string IgKProbabilityDistribution = "IMGT_NoIsotypes_IGH_probabilitydistribution.csv";
+        private const string IgKProbabilityDistribution = "IMGT_NoIsotypes_IGK_probabilitydistribution.csv";
 
         /// <summary>
         /// Path to embedded IMGT amino acid frequency table for Lambda light chains
@@ -1140,7 +1139,7 @@ namespace FabLab
         /// Path to embedded IMGT amino acid frequency table for heavy chains
         /// </summary>
         public static string IgHProbabilityDistributionPath { get => ParseResource(IgHProbabilityDistribution); }
-        private const string IgHProbabilityDistribution = "IMGT_NoIsotypes_IGK_probabilitydistribution.csv";
+        private const string IgHProbabilityDistribution = "IMGT_NoIsotypes_IGH_probabilitydistribution.csv";
 
         private static string ParseResource(string filename)
         {
@@ -1274,13 +1273,5 @@ namespace FabLab
         {
             return new RankedContig(value.contig, value.peaks, value.template, value.spectrum, value.conservedness, value.peaksR, value.templateR, value.spectrumR, value.conservednessR, value.sumR, value.numbering, SequenceSource.Contig);
         }
-    }
-
-	public enum SequenceSource
-    {
-        Consensus,
-        Reads,
-        Contig,
-        TwoReads,
     }
 }

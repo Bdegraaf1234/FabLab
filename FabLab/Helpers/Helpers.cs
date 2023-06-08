@@ -5,6 +5,7 @@ using HeckLib.masspec;
 using HeckLib.objectlistview;
 using HeckLib.utils;
 using HeckLib.visualization.objectlistview;
+using ImgtFilterLib;
 using PsrmLib;
 using PsrmLib.IO;
 using PsrmLib.Models;
@@ -64,96 +65,89 @@ namespace FabLab.Helpers
         /// <param name="source"></param>
         /// <returns></returns>
         public static RankedContig[] Rank((Peptide, double[])[] contigs, Document doc, SequenceSource source, RegionType region)
-        {
-            var res = new ConcurrentBag<RankedContig>();
-
-            string csvPath = Document.IgHProbabilityDistributionPath;
-            switch (doc.Locus)
-            {
-                case ImgtFilterLib.LociEnum.Kappa:
-                    csvPath = Document.IgKProbabilityDistributionPath;
-                    break;
-                case ImgtFilterLib.LociEnum.Lambda:
-                    csvPath = Document.IgLProbabilityDistributionPath;
-                    break;
-                case ImgtFilterLib.LociEnum.Heavy:
-                    break;
-                case ImgtFilterLib.LociEnum.TBD:
-                    break;
-                default:
-                    break;
-            }
-
-			List<(double number, List<(char residue, int count)> frequencies)> distribution = doc.Consensus ?? ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
-
-            List<(double number, List<(char residue, int count)>)> templateDistribution = ReadFilter.GetConsensusFromReads(doc.NumberedTemplates).ToList();
-
-            Parallel.ForEach(contigs, contig =>
-            {
-                RankedContig con = new RankedContig();
-                con.contig = contig.Item1;
-                con.numbering = contig.Item2;
-                con.conservedness = ExtenderBase<int>.Scoring.GetConservednessSupportScore((contig.Item1.Sequence, contig.Item2), csvPath);
-                con.peaks = ExtenderBase<int>.Scoring.GetPEAKSSupportScore((contig.Item1.Sequence, contig.Item2), distribution);
-                con.template = ExtenderBase<int>.Scoring.GetTemplateSupport((contig.Item1.Sequence, contig.Item2), templateDistribution).Sum();
-
-                var asm = new AnnotatedSpectrumMatch(doc.Spectrum, contig.Item1, doc.ScoringModel);
-                con.spectrum = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
-                con.origin = source;
-
-                con.multi = 0;
-                con.multiR = 0;
-
-                res.Add(con);
-            }
-            );
-
-            var resArray = res.ToArray();
-
-            if (doc.CurrentSettings.UseMultiScore)
-                resArray = GetMultiScore(doc, null, res);
-            var varsToOrderOn = doc.CurrentSettings.OrderingVars[region];
-            if (varsToOrderOn.Contains(5) && !doc.CurrentSettings.UseMultiScore)
-            {
-                var l = varsToOrderOn.ToList();
-                l.Add(1);
-                varsToOrderOn = l.ToArray();
-            }
-
-            return Document.Reorder(resArray, varsToOrderOn);
-        }
-
-        /// <summary>
-        /// account for the weights given in settings, because we cannot do so through the front end. no support for spectral score so far, and integrated support for conservedness so we do not acount for it
-        /// </summary>
-        /// <param name="contigs"></param>
-        /// <param name="spectrum"></param>
-        /// <param name="reads"></param>
-        /// <param name="templates"></param>
-        /// <param name="source"></param>
-        /// <returns></returns>
-        public static RankedContig[] RankFullLength((Peptide, double[])[] contigs, SequenceSource source, Document doc, ImgtFilterLib.LociEnum locus = ImgtFilterLib.LociEnum.Kappa, int[] multiScoreRange = null)
 		{
 			var res = new ConcurrentBag<RankedContig>();
 
-			string csvPath = Document.IgHProbabilityDistributionPath;
-			switch (locus)
+			string csvPath = GetProbabilityDistribution(doc.Locus);
+
+			List<(double number, List<(char residue, int count)> frequencies)> distribution = doc.Consensus ?? ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
+
+			List<(double number, List<(char residue, int count)>)> templateDistribution = ReadFilter.GetConsensusFromReads(doc.NumberedTemplates).ToList();
+
+			Parallel.ForEach(contigs, contig =>
 			{
-				case ImgtFilterLib.LociEnum.Kappa:
-					csvPath = Document.IgKProbabilityDistributionPath;
-					break;
-				case ImgtFilterLib.LociEnum.Lambda:
-					csvPath = Document.IgHProbabilityDistributionPath;
-					break;
-				case ImgtFilterLib.LociEnum.Heavy:
-					break;
-				case ImgtFilterLib.LociEnum.TBD:
-					break;
-				default:
-					break;
+				RankedContig con = new RankedContig();
+				con.contig = contig.Item1;
+				con.numbering = contig.Item2;
+				con.conservedness = ExtenderBase<int>.Scoring.GetConservednessSupportScore((contig.Item1.Sequence, contig.Item2), csvPath);
+				con.peaks = ExtenderBase<int>.Scoring.GetPEAKSSupportScore((contig.Item1.Sequence, contig.Item2), distribution);
+				con.template = ExtenderBase<int>.Scoring.GetTemplateSupport((contig.Item1.Sequence, contig.Item2), templateDistribution).Sum();
+
+				var asm = new AnnotatedSpectrumMatch(doc.Spectrum, contig.Item1, doc.ScoringModel);
+				con.spectrum = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
+				con.origin = source;
+
+				con.multi = 0;
+				con.multiR = 0;
+
+				res.Add(con);
+			}
+			);
+
+			var resArray = res.ToArray();
+
+			if (doc.CurrentSettings.UseMultiScore)
+				resArray = GetMultiScore(doc, null, res);
+			var varsToOrderOn = doc.CurrentSettings.OrderingVars[region];
+			if (varsToOrderOn.Contains(5) && !doc.CurrentSettings.UseMultiScore)
+			{
+				var l = varsToOrderOn.ToList();
+				l.Add(1);
+				varsToOrderOn = l.ToArray();
 			}
 
-			var distribution = ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
+			return Document.Reorder(resArray, varsToOrderOn);
+		}
+
+		internal static string GetProbabilityDistribution(LociEnum locusEnum)
+		{
+			switch (locusEnum)
+			{
+				case ImgtFilterLib.LociEnum.Kappa:
+					return Document.IgKProbabilityDistributionPath;
+					break;
+				case ImgtFilterLib.LociEnum.Lambda:
+                    return Document.IgLProbabilityDistributionPath;
+					break;
+				case ImgtFilterLib.LociEnum.Heavy:
+                    return Document.IgHProbabilityDistributionPath;
+					break;
+				case ImgtFilterLib.LociEnum.TBD:
+                    throw new Exception($"Incorrect Locus provided: {Enum.GetName(typeof(LociEnum), locusEnum)}");
+					break;
+				default:
+                    throw new Exception($"Incorrect Locus provided: {Enum.GetName(typeof(LociEnum), locusEnum)}");
+                    break;
+			}
+		}
+
+		/// <summary>
+		/// account for the weights given in settings, because we cannot do so through the front end. no support for spectral score so far, and integrated support for conservedness so we do not acount for it
+		/// </summary>
+		/// <param name="contigs"></param>
+		/// <param name="spectrum"></param>
+		/// <param name="reads"></param>
+		/// <param name="templates"></param>
+		/// <param name="source"></param>
+		/// <returns></returns>
+		public static RankedContig[] RankFullLength((Peptide, double[])[] contigs, SequenceSource source, Document doc, ImgtFilterLib.LociEnum locus = ImgtFilterLib.LociEnum.Kappa, int[] multiScoreRange = null)
+		{
+			var res = new ConcurrentBag<RankedContig>();
+
+            string csvPath = GetProbabilityDistribution(doc.Locus);
+
+
+            var distribution = ReadFilter.GetConsensusFromReadsOriginal(doc.NumberedReads);
 			List<(double number, List<(char residue, int count)>)> templateDistribution = ReadFilter.GetConsensusFromReads(doc.NumberedTemplates.Select(x => (x.read.Sequence, x.numbering)).ToList());
 
 			// we remove the support from regions where it should not be accounted for in the score.
@@ -415,7 +409,6 @@ namespace FabLab.Helpers
 
 		private static void ClipIdentical(Document doc, ConcurrentBag<string> keyBag)
 		{
-
 			//select start and end
 			int startIdx = 0;
 			var coverages = keyBag.Distinct().Select(x => doc.MultiScores[x]).ToArray();

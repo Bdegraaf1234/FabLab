@@ -2713,23 +2713,8 @@ namespace FabLab
 
 		private void DrawConservationSupportChart(RegionType curRegion)
 		{
+			string csvPath = Helpers.Helpers.GetProbabilityDistribution(Document.Locus);
 
-			string csvPath = Document.IgHProbabilityDistributionPath;
-			switch (Document.Locus)
-			{
-				case ImgtFilterLib.LociEnum.Kappa:
-					csvPath = Document.IgKProbabilityDistributionPath;
-					break;
-				case ImgtFilterLib.LociEnum.Lambda:
-					csvPath = Document.IgLProbabilityDistributionPath;
-					break;
-				case ImgtFilterLib.LociEnum.Heavy:
-					break;
-				case ImgtFilterLib.LociEnum.TBD:
-					break;
-				default:
-					break;
-			}
 			var chart = GetContigConservationChart(curRegion);
 
 
@@ -2829,7 +2814,7 @@ namespace FabLab
 
 				var bestMatch = PsrmLib.Scoring.Alignment.FindBestMatch(innerSeq, options.Select(x => x.Item2), alignerConstructor: () =>
 				{
-					var a = PsrmLib.Global.Settings.DefaultTemplateAligner;
+					var a = PsrmLib.Settings.DefaultTemplateAligner;
 					a.GapOpenCost = -80;
 					a.GapExtensionCost = -80;
 					return a;
@@ -3647,7 +3632,7 @@ namespace FabLab
 			ObjectListView olv = ((ObjectListView)sender);
 			RankedContig item = new RankedContig();
 			var multiScoreRange = ((int, int, TabControl))olv.Tag;
-			var chart = ControlsWithDockedCharts[multiScoreRange.Item3.TabPages[0]];
+			var chart = ControlsWithDockedCharts[multiScoreRange.Item3.TabPages[1]];
 			try
 			{
 				//if (olv.FocusedObject != null)
@@ -3713,7 +3698,7 @@ namespace FabLab
 		private void DrawPredictionDotPlot(object sender)
 		{
 			ObjectListView olv = ((ObjectListView)sender);
-			var chart = ControlsWithDockedCharts[(((int, int, TabControl))olv.Tag).Item3.TabPages[1]];
+			var chart = ControlsWithDockedCharts[(((int, int, TabControl))olv.Tag).Item3.TabPages[0]];
 			var ordered = new List<(int, RankedContig)>(olv.GetItemCount());
 
 			for (int i = 0; i < olv.GetItemCount(); i++)
