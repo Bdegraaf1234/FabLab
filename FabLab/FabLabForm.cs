@@ -2903,11 +2903,6 @@ namespace FabLab
 			StartUp();
 		}
 
-		private void saveSessionToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			Document.SaveProcessed();
-		}
-
 		private void saveInputAsGenericFilesToolStripMenuItem_Click(object sender, EventArgs e)
 		{
 			Document.SaveInput();

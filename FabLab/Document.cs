@@ -351,19 +351,20 @@ namespace FabLab
                 }
 			}
 
-            public void WriteAsJson(string path)
-            {
-                var dir = Path.GetDirectoryName(path) + "\\Settings";
-                Directory.CreateDirectory(dir);
+            //public void WriteAsJson(string path)
+            //{
+            //    var dir = Path.GetDirectoryName(path) + "\\Settings";
+            //    Directory.CreateDirectory(dir);
+            //TODO Used old json implementation and was removed as a function.
 
-                JsonUtils.WriteDictionary(dir + @"SequenceSourceToDisplay.json", SequenceSourceToDisplay);
-                JsonUtils.WriteDictionary(dir + @"OrderingVars.json", OrderingVars);
-                JsonUtils.Write(dir + @"MaxNDelta.json", MaxNDelta);
-                JsonUtils.Write(dir + @"MaxCDelta.json", MaxCDelta);
-                JsonUtils.Write(dir + @"ToleranceInDaGapFillers.json", ToleranceInDaGapFillers);
-                JsonUtils.Write(dir + @"MaxCdrInPrediction.json", MaxCdrInPrediction);
-                JsonUtils.Write(dir + @"AddNullTermContigs.json", AddNullTermContigs);
-            }
+            //    JsonUtils.WriteDictionary(dir + @"SequenceSourceToDisplay.json", SequenceSourceToDisplay);
+            //    JsonUtils.WriteDictionary(dir + @"OrderingVars.json", OrderingVars);
+            //    JsonUtils.Write(dir + @"MaxNDelta.json", MaxNDelta);
+            //    JsonUtils.Write(dir + @"MaxCDelta.json", MaxCDelta);
+            //    JsonUtils.Write(dir + @"ToleranceInDaGapFillers.json", ToleranceInDaGapFillers);
+            //    JsonUtils.Write(dir + @"MaxCdrInPrediction.json", MaxCdrInPrediction);
+            //    JsonUtils.Write(dir + @"AddNullTermContigs.json", AddNullTermContigs);
+            //}
 
             public static Settings ReadFromJson(string path)
             {
@@ -669,43 +670,44 @@ namespace FabLab
 		#region Saving
 
 		/// <summary>
-		/// Save the processed Data
+		/// Save the processed Data. 
 		/// </summary>
 		public void SaveProcessed()
         {
-            var sfd = new SaveFileDialog()
-            {
-                AddExtension = true,
-                DefaultExt = ".flab",
-            };
+            //var sfd = new SaveFileDialog()
+            //{
+            //    AddExtension = true,
+            //    DefaultExt = ".flab",
+            //};
 
-            if (sfd.ShowDialog() == DialogResult.OK)
-            {
-                try
-                {
-                    var dir = Path.GetDirectoryName(sfd.FileName) + "\\Save";
-                    Directory.CreateDirectory(dir);
-                    JsonUtils.Write(dir + @"\predictions.json", Predictions);
-                    JsonUtils.Write(dir + @"\numberedTemplates.json", NumberedTemplates);
-                    JsonUtils.Write(dir + @"\readFilter.json", ReadFilter);
-                    JsonUtils.WriteDictionary(dir + @"\clippedContigs.json", ClippedContigs);
-                    JsonUtils.WriteDictionary(dir + @"\fillerDict.json", FillerDict);
-                    JsonUtils.Write(dir + @"\spectrum.json", Spectrum);
-                    CurrentSettings.WriteAsJson(dir + @"\settings.json");
+            //if (sfd.ShowDialog() == DialogResult.OK)
+            //{
+            //    try
+            //    {
+            //        var dir = Path.GetDirectoryName(sfd.FileName) + "\\Save";
+            //        Directory.CreateDirectory(dir);
+            //        JsonUtils.Write(dir + @"\predictions.json", Predictions);
+            //        JsonUtils.Write(dir + @"\numberedTemplates.json", NumberedTemplates);
+            //        JsonUtils.Write(dir + @"\readFilter.json", ReadFilter);
+            //TODO Used old json implementation and was removed as a function.
+            //        JsonUtils.WriteDictionary(dir + @"\clippedContigs.json", ClippedContigs);
+            //        JsonUtils.WriteDictionary(dir + @"\fillerDict.json", FillerDict);
+            //        JsonUtils.Write(dir + @"\spectrum.json", Spectrum);
+            //        CurrentSettings.WriteAsJson(dir + @"\settings.json");
 
-                    if (File.Exists(sfd.FileName))
-                        File.Delete(sfd.FileName);
+            //        if (File.Exists(sfd.FileName))
+            //            File.Delete(sfd.FileName);
 
-                    ZipFile.CreateFromDirectory(dir, sfd.FileName);
+            //        ZipFile.CreateFromDirectory(dir, sfd.FileName);
 
-                    if (Directory.Exists(dir))
-                        Directory.Delete(dir, true);
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show($"failed to save: {e.Message}");
-                }
-            }
+            //        if (Directory.Exists(dir))
+            //            Directory.Delete(dir, true);
+            //    }
+            //    catch (Exception e)
+            //    {
+            //        MessageBox.Show($"failed to save: {e.Message}");
+            //    }
+            //}
         }
 
         /// <summary>
@@ -975,61 +977,6 @@ namespace FabLab
 
         #endregion
 
-        #region Dialogs
-
-        public static double RequestNumber()
-        {
-            Form prompt = new Form()
-            {
-                Width = 500,
-                Height = 150,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                StartPosition = FormStartPosition.CenterScreen
-            };
-
-            NumericUpDown updown = new NumericUpDown();
-            prompt.Controls.Add(updown);
-
-            Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
-            confirmation.Click += (sender, e) => { prompt.Close(); };
-            prompt.Controls.Add(confirmation);
-            prompt.AcceptButton = confirmation;
-
-            return prompt.ShowDialog() == DialogResult.OK ? (double)updown.Value : -1;
-        }
-
-        public static LociEnum RequestLocus()
-        {
-            Form prompt = new Form()
-            {
-                Width = 500,
-                Height = 150,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                StartPosition = FormStartPosition.CenterScreen
-            };
-
-			ComboBox locusCb = new ComboBox
-			{
-				DataSource = Enum.GetValues(typeof(LociEnum)),
-				Dock = DockStyle.Fill
-			};
-			prompt.Controls.Add(locusCb);
-
-            Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
-            confirmation.Click += (sender, e) => { prompt.Close(); };
-            prompt.Controls.Add(confirmation);
-            prompt.AcceptButton = confirmation;
-
-            if (prompt.ShowDialog() == DialogResult.OK)
-            {
-                Enum.TryParse<LociEnum>(locusCb.SelectedValue.ToString(), out LociEnum locus);
-                return locus;
-            }
-            else
-                return LociEnum.TBD;
-        }
-
-        #endregion
 
         #region Helpers
 
