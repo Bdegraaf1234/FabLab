@@ -1,4 +1,4 @@
-# Fablab
+# FabLab
 Integrated LC-MS/MS-based de novo sequencing of antibody chains in complex mixtures
 
 ## Getting started
@@ -46,7 +46,7 @@ Middle down data was acquired as described in the publication in ./CITATION.cff.
 # Credits
 ### Developers
 * Bastiaan de Graaf - Software engineer - s.c.degraaf{at}uu{dot}nl
-* Douwe Schulte - collaborating developer, lead developer for the [STITCH](https://github.com/snijderlab/stitch/) Bottom-Up sequencing tool
+* Douwe Schulte - collaborating developer, lead developer for the [Stitch](https://github.com/snijderlab/stitch/) Bottom-Up sequencing tool
 ### Academic guidance
 * Albert Heck - Principal investigator
 * Richard Scheltema - Developer of the hecklib dependencies
@@ -57,10 +57,10 @@ Middle down data was acquired as described in the publication in ./CITATION.cff.
 * Weiwei Peng - Experimental method development
 
 ## Acknowledgements
-* All credited individuals are part of the group ["Biomolecular Mass Spectrometry and Proteomics"](https://www.uu.nl/en/research/biomolecular-mass-spectrometry-and-proteomics) ([or here](https://www.hecklab.com/biomolecular-mass-spectrometry-and-proteomics/)) at the [university of Utrecht](https://www.uu.nl/)
+* All credited individuals are part of the group ["Biomolecular Mass Spectrometry and Proteomics"](https://www.uu.nl/en/research/biomolecular-mass-spectrometry-and-proteomics) ([or here](https://www.hecklab.com/biomolecular-mass-spectrometry-and-proteomics/)) at the [Utrecht University](https://www.uu.nl/)
 
 ## Dependencies
-- Fablab is built on the Hecklib MS Data analysis packages. These packages are precompiled into a single nuget dependency for direct consumption, located in the ```nuget/``` folder.
+- FabLab is built on the Hecklib MS Data analysis packages. These packages are precompiled into a single nuget dependency for direct consumption, located in the ```nuget/``` folder.
 
 ## License
 GPLV2 License (see LICENSE.md)
