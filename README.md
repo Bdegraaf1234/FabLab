@@ -53,7 +53,7 @@ Middle down data was acquired as described in the publication in ./CITATION.cff.
 ### Eperimental support
 * Sem Tamara - Experimental method development
 * Max Hoek - Experimental method development
-* Abert Bondt - Experimental method development
+* Albert Bondt - Experimental method development
 * Weiwei Peng - Experimental method development
 
 ## Acknowledgements
