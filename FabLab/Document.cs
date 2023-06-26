@@ -34,9 +34,9 @@ namespace FabLab
         
         private readonly static int peaks_key = 1;
         private readonly static int template_key = 2;
-        private readonly static int spectrum_key = 3;
+        private readonly static int md_key = 3;
         private readonly static int conservedness_key = 4;
-        private readonly static int multi_key = 5;
+        private readonly static int shotgun_key = 5;
 
         #endregion
 
@@ -64,7 +64,7 @@ namespace FabLab
         /// </summary>
         public List<(PeaksPeptideData read, double[] numbering)> NumberedReads;
 
-        public Dictionary<string, List<List<Coverage>>> MultiScores = new Dictionary<string, List<List<Coverage>>>();
+        public Dictionary<string, List<List<Coverage>>> ShotgunScores = new Dictionary<string, List<List<Coverage>>>();
 
         /// <summary>
         /// Top down spectrum
@@ -218,9 +218,9 @@ namespace FabLab
 
             [RefreshProperties(RefreshProperties.All)]
             [Category("3. Scoring")]
-            [DisplayName("Use MultiScore")]
-            [Description("Calculate multiscore throughout processing")]
-            public bool UseMultiScore { get; set; } = true;
+            [DisplayName("Use ShotgunScore")]
+            [Description("Calculate shotgun score throughout processing")]
+            public bool UseShotgunScore { get; set; } = true;
 
 
             [RefreshProperties(RefreshProperties.All)]
@@ -245,14 +245,14 @@ namespace FabLab
 
             [RefreshProperties(RefreshProperties.All)]
             [Category("3. Scoring")]
-            [DisplayName("Hide identical multiscore sections")]
-            [Description("In plots, hide the residues which have identical multiscore coverage. Does not affect scoring.")]
+            [DisplayName("Hide identical shotgun score sections")]
+            [Description("In plots, hide the residues which have identical shotgun score coverage. Does not affect scoring.")]
             public bool ClipIdentical { get; set; } = false;
 
             [RefreshProperties(RefreshProperties.All)]
             [Category("3. Scoring")]
             [DisplayName("Fragment tolerance")]
-            [Description("In plots, hide the residues which have identical multiscore coverage. Does not affect scoring.")]
+            [Description("The maximum deviation in PPM for matching peaks to theoretical fragment masses.")]
             public int Tolerance { get; set; } = 20;
 
             [RefreshProperties(RefreshProperties.All)]
@@ -270,26 +270,31 @@ namespace FabLab
             [RefreshProperties(RefreshProperties.All)]
             [Category("1. Sliding window")]
             [DisplayName("FR1 step size")]
-            [Description("How far should the sliding window scoring function shift the FR1 to the right")]
+            [Description("How far should the sliding window scoring function shift the FR1 to the right every iteration")]
             public double Fr1SwStepSize { get; set; } = .001;
 
             [RefreshProperties(RefreshProperties.All)]
             [Category("1. Sliding window")]
-            [DisplayName("FR1 Shift left")]
-            [Description("How far should the sliding window scoring function shift the FR1 to the left")]
+            [DisplayName("FR Shift left")]
+            [Description("How far should the sliding window scoring function shift contigs to the left")]
             public double SwShiftLeft { get; set; } = 200;
 
             [RefreshProperties(RefreshProperties.All)]
             [Category("1. Sliding window")]
-            [DisplayName("Shift left")]
-            [Description("How far should the sliding window scoring function shift the FR1 to the right")]
+            [DisplayName("Shift right")]
+            [Description("How far should the sliding window scoring function shift contigs to the right")]
             public double SwShiftRight { get; set; } = 200;
 
             [RefreshProperties(RefreshProperties.All)]
             [Category("1. Sliding window")]
             [DisplayName("Sliding window step size")]
-            [Description("How far should the sliding window scoring function shift the FR1 to the right")]
+            [Description("By what increment should the fragment masses be increased for sliding window scoring (Da)")]
             public double SwStepSize { get; set; } = .01;
+
+            [RefreshProperties(RefreshProperties.All)]
+            [Category("2. Parsing")]
+            [DisplayName("Median shift spectrum")]
+            [Description("Should the detected fragments be shifted to center around a 0 ppm error (using the C-region)")]
             public bool MedianShift { get; set; } = true;
 
             public Settings()
@@ -325,25 +330,25 @@ namespace FabLab
                     switch (region)
                     {
                         case RegionType.FR1:
-                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { md_key, shotgun_key });
                             break;
                         case RegionType.CDR1:
-                            OrderingVars.Add(region, new int[] { spectrum_key, peaks_key });
+                            OrderingVars.Add(region, new int[] { md_key, peaks_key });
                             break;
                         case RegionType.FR2:
-                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { md_key, shotgun_key });
                             break;
                         case RegionType.CDR2:
-                            OrderingVars.Add(region, new int[] { spectrum_key, peaks_key });
+                            OrderingVars.Add(region, new int[] { md_key, peaks_key });
                             break;
                         case RegionType.FR3:
-                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { md_key, shotgun_key });
                             break;
                         case RegionType.CDR3:
-                            OrderingVars.Add(region, new int[] { spectrum_key, peaks_key, conservedness_key });
+                            OrderingVars.Add(region, new int[] { md_key, peaks_key, conservedness_key });
                             break;
                         case RegionType.FR4:
-                            OrderingVars.Add(region, new int[] { spectrum_key, multi_key });
+                            OrderingVars.Add(region, new int[] { md_key, shotgun_key });
                             break;
                         default:
                             break;
@@ -465,7 +470,7 @@ namespace FabLab
 					rList = rList.GroupBy(x => x.contig.GetModifiedSequence()).Select(x => x.First()).ToList();
 
                     var varsToOrderOn = CurrentSettings.OrderingVars[region];
-                    if (varsToOrderOn.Contains(5) && !CurrentSettings.UseMultiScore)
+                    if (varsToOrderOn.Contains(5) && !CurrentSettings.UseShotgunScore)
                     {
                         var l = varsToOrderOn.ToList();
                         l.Add(1);
@@ -492,7 +497,7 @@ namespace FabLab
 
 			if (CurrentSettings.MedianShift)
 			{
-                var bestFr4 = ClippedContigs[RegionType.FR4].OrderByDescending(x => x.spectrum).First().contig;
+                var bestFr4 = ClippedContigs[RegionType.FR4].OrderByDescending(x => x.mdScore).First().contig;
                 var asm = new AnnotatedSpectrumMatch(Spectrum, bestFr4, ScoringModel);
                 var relErrors = GatherErrorsAndCorrect(asm.FragmentMatches, Spectrum);
 
@@ -991,16 +996,16 @@ namespace FabLab
             var uniquePeaksScore = contigs.Select(x => x.peaks).Distinct().OrderByDescending(x => x).ToArray();
             var uniqueTemplateScore = contigs.Select(x => x.template).Distinct().OrderByDescending(x => x).ToArray();
             var uniqueConservationScore = contigs.Select(x => x.conservedness).Distinct().OrderByDescending(x => x).ToArray();
-            var uniqueSpectrumScore = contigs.Select(x => x.spectrum).Distinct().OrderByDescending(x => x).ToArray();
-            var uniqueMultiScore = contigs.Select(x => x.multi).Distinct().OrderByDescending(x => x).ToArray();
+            var uniqueMdScore = contigs.Select(x => x.mdScore).Distinct().OrderByDescending(x => x).ToArray();
+            var uniqueShotgunScore = contigs.Select(x => x.shotgun).Distinct().OrderByDescending(x => x).ToArray();
 
             ConcurrentDictionary<double, int> peaksRanks = new ConcurrentDictionary<double, int>();
             ConcurrentDictionary<double, int> templateRanks = new ConcurrentDictionary<double, int>();
-            ConcurrentDictionary<double, int> SpectrumRanks = new ConcurrentDictionary<double, int>();
+            ConcurrentDictionary<double, int> MdRanks = new ConcurrentDictionary<double, int>();
             ConcurrentDictionary<double, int> conservationRanks = new ConcurrentDictionary<double, int>();
-            ConcurrentDictionary<double, int> multiRanks = new ConcurrentDictionary<double, int>();
+            ConcurrentDictionary<double, int> shotgunRanks = new ConcurrentDictionary<double, int>();
 
-            int maxLength = new int[] { uniquePeaksScore.Length, uniqueConservationScore.Length, uniqueSpectrumScore.Length, uniqueTemplateScore.Length }.Max();
+            int maxLength = new int[] { uniquePeaksScore.Length, uniqueConservationScore.Length, uniqueMdScore.Length, uniqueTemplateScore.Length }.Max();
 
             Parallel.For(
                 0,
@@ -1025,17 +1030,17 @@ namespace FabLab
                 });
             Parallel.For(
                 0,
-                uniqueMultiScore.Length,
+                uniqueShotgunScore.Length,
                 i =>
                 {
-                    multiRanks.AddOrUpdate(uniqueMultiScore[i], i, (k, v) => v);
+                    shotgunRanks.AddOrUpdate(uniqueShotgunScore[i], i, (k, v) => v);
                 });
             Parallel.For(
                 0,
-                uniqueSpectrumScore.Length,
+                uniqueMdScore.Length,
                 i =>
                 {
-                    SpectrumRanks.AddOrUpdate(uniqueSpectrumScore[i], i, (k, v) => v);
+                    MdRanks.AddOrUpdate(uniqueMdScore[i], i, (k, v) => v);
                 });
 
 
@@ -1043,9 +1048,9 @@ namespace FabLab
             Parallel.For(0, contigCount, i => {
                 contigs[i].peaksR = peaksRanks[contigs[i].peaks];
                 contigs[i].templateR = templateRanks[contigs[i].template];
-                contigs[i].spectrumR = SpectrumRanks[contigs[i].spectrum];
+                contigs[i].mdR = MdRanks[contigs[i].mdScore];
                 contigs[i].conservednessR= conservationRanks[contigs[i].conservedness];
-                contigs[i].multiR = multiRanks[contigs[i].multi];
+                contigs[i].shotgunR = shotgunRanks[contigs[i].shotgun];
                 contigs[i].sumR = 0;
             });
                     
@@ -1059,17 +1064,17 @@ namespace FabLab
                 {
                     contigs[i].sumR += contigs[i].templateR; // never hit
                 }
-                if (varsToOrderOn.Contains(spectrum_key))
+                if (varsToOrderOn.Contains(md_key))
                 {
-                    contigs[i].sumR += contigs[i].spectrumR;
+                    contigs[i].sumR += contigs[i].mdR;
                 }
                 if (varsToOrderOn.Contains(conservedness_key))
                 {
                     contigs[i].sumR += contigs[i].conservednessR;
                 }
-                if (varsToOrderOn.Contains(multi_key))
+                if (varsToOrderOn.Contains(shotgun_key))
                 {
-                    contigs[i].sumR += contigs[i].multiR;
+                    contigs[i].sumR += contigs[i].shotgunR;
                 }
             });
 
@@ -1129,14 +1134,14 @@ namespace FabLab
         public Peptide contig;
         public double peaks;
         public double template;
-        public double spectrum;
+        public double mdScore;
         public double conservedness;
-        public double multi;
+        public double shotgun;
         public int peaksR;
         public int templateR;
-        public int spectrumR;
+        public int mdR;
         public int conservednessR;
-        public int multiR;
+        public int shotgunR;
         public int sumR;
         public double[] numbering;
         public SequenceSource origin;
@@ -1146,17 +1151,17 @@ namespace FabLab
             this.contig = contig;
             this.peaks = peaks;
             this.template = template;
-            this.spectrum = spectrum;
+            this.mdScore = spectrum;
             this.conservedness = conservedness;
             this.peaksR = peaksR;
             this.templateR = templateR;
-            this.spectrumR = spectrumR;
+            this.mdR = spectrumR;
             this.conservednessR = conservednessR;
             this.sumR = sumR;
             this.numbering = numbering;
             this.origin = source;
-            this.multi = 0;
-            this.multiR = 0;
+            this.shotgun = 0;
+            this.shotgunR = 0;
         }
 
 		public override bool Equals(object obj)
@@ -1166,14 +1171,9 @@ namespace FabLab
                    EqualityComparer<Peptide>.Default.Equals(contig, other.contig) &&
                    peaks == other.peaks &&
                    template == other.template &&
-                   spectrum == other.spectrum &&
+                   mdScore == other.mdScore &&
                    conservedness == other.conservedness &&
-                   multi == other.multi  &&
-                   //peaksR == other.peaksR &&
-                   //templateR == other.templateR &&
-                   //spectrumR == other.spectrumR &&
-                   //conservednessR == other.conservednessR &&
-                   //sumR == other.sumR &&
+                   shotgun == other.shotgun  &&
                    EqualityComparer<double[]>.Default.Equals(numbering, other.numbering);
         }
 
@@ -1183,29 +1183,29 @@ namespace FabLab
             hashCode = hashCode * -1521134295 + EqualityComparer<Peptide>.Default.GetHashCode(contig);
             hashCode = hashCode * -1521134295 + peaks.GetHashCode();
             hashCode = hashCode * -1521134295 + template.GetHashCode();
-            hashCode = hashCode * -1521134295 + spectrum.GetHashCode();
-            hashCode = hashCode * -1521134295 + multi.GetHashCode();
+            hashCode = hashCode * -1521134295 + mdScore.GetHashCode();
+            hashCode = hashCode * -1521134295 + shotgun.GetHashCode();
             hashCode = hashCode * -1521134295 + conservedness.GetHashCode();
             hashCode = hashCode * -1521134295 + peaksR.GetHashCode();
             hashCode = hashCode * -1521134295 + templateR.GetHashCode();
-            hashCode = hashCode * -1521134295 + spectrumR.GetHashCode();
-            hashCode = hashCode * -1521134295 + multiR.GetHashCode();
+            hashCode = hashCode * -1521134295 + mdR.GetHashCode();
+            hashCode = hashCode * -1521134295 + shotgunR.GetHashCode();
             hashCode = hashCode * -1521134295 + conservednessR.GetHashCode();
             hashCode = hashCode * -1521134295 + sumR.GetHashCode();
             hashCode = hashCode * -1521134295 + EqualityComparer<double[]>.Default.GetHashCode(numbering);
             return hashCode;
         }
 
-        public void Deconstruct(out Peptide contig, out double peaks, out double template, out double spectrum, out double conservedness, out int peaksR, out int templateR, out int spectrumR, out int conservednessR, out int sumR, out double[] numbering)
+        public void Deconstruct(out Peptide contig, out double peaks, out double template, out double mdScore, out double conservedness, out int peaksR, out int templateR, out int mdR, out int conservednessR, out int sumR, out double[] numbering)
         {
             contig = this.contig;
             peaks = this.peaks;
             template = this.template;
-            spectrum = this.spectrum;
+            mdScore = this.mdScore;
             conservedness = this.conservedness;
             peaksR = this.peaksR;
             templateR = this.templateR;
-            spectrumR = this.spectrumR;
+            mdR = this.mdR;
             conservednessR = this.conservednessR;
             sumR = this.sumR;
             numbering = this.numbering;
@@ -1217,19 +1217,9 @@ namespace FabLab
             return EqualityComparer<Peptide>.Default.Equals(contig, other.contig) &&
                    peaks == other.peaks &&
                    template == other.template &&
-                   spectrum == other.spectrum &&
+                   mdScore == other.mdScore &&
                    conservedness == other.conservedness &&
                    EqualityComparer<double[]>.Default.Equals(numbering, other.numbering);
-        }
-
-		public static implicit operator (Peptide contig, double peaks, double template, double spectrum, double conservedness, int peaksR, int templateR, int spectrumR, int conservednessR, int sumR, double[] numbering, SequenceSource source)(RankedContig value)
-        {
-            return (value.contig, value.peaks, value.template, value.spectrum, value.conservedness, value.peaksR, value.templateR, value.spectrumR, value.conservednessR, value.sumR, value.numbering, value.origin);
-        }
-
-        public static implicit operator RankedContig((Peptide contig, double peaks, double template, double spectrum, double conservedness, int peaksR, int templateR, int spectrumR, int conservednessR, int sumR, double[] numbering, SequenceSource source) value)
-        {
-            return new RankedContig(value.contig, value.peaks, value.template, value.spectrum, value.conservedness, value.peaksR, value.templateR, value.spectrumR, value.conservednessR, value.sumR, value.numbering, SequenceSource.Contig);
         }
     }
 }

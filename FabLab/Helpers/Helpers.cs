@@ -13,6 +13,7 @@ using PsrmLib.Processing;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -85,11 +86,11 @@ namespace FabLab
 				};
 
 				var asm = new AnnotatedSpectrumMatch(doc.Spectrum, contig.Item1, doc.ScoringModel);
-				con.spectrum = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
+				con.mdScore = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
 				con.origin = source;
 
-				con.multi = 0;
-				con.multiR = 0;
+				con.shotgun = 0;
+				con.shotgunR = 0;
 
 				res.Add(con);
 			}
@@ -97,10 +98,10 @@ namespace FabLab
 
 			var resArray = res.ToArray();
 
-			if (doc.CurrentSettings.UseMultiScore)
-				resArray = GetMultiScore(doc, null, res);
+			if (doc.CurrentSettings.UseShotgunScore)
+				resArray = GetShotgunScore(doc, null, res);
 			var varsToOrderOn = doc.CurrentSettings.OrderingVars[region];
-			if (varsToOrderOn.Contains(5) && !doc.CurrentSettings.UseMultiScore)
+			if (varsToOrderOn.Contains(5) && !doc.CurrentSettings.UseShotgunScore)
 			{
 				var l = varsToOrderOn.ToList();
 				l.Add(1);
@@ -136,7 +137,7 @@ namespace FabLab
 		/// <param name="templates"></param>
 		/// <param name="source"></param>
 		/// <returns></returns>
-		public static RankedContig[] RankFullLength((Peptide, double[])[] contigs, SequenceSource source, Document doc, ImgtFilterLib.LociEnum locus = LociEnum.Kappa, int[] multiScoreRange = null)
+		public static RankedContig[] RankFullLength((Peptide, double[])[] contigs, SequenceSource source, Document doc)
 		{
 			var res = new ConcurrentBag<RankedContig>();
 
@@ -216,7 +217,7 @@ namespace FabLab
 				};
 
 				var asm = new AnnotatedSpectrumMatch(doc.Spectrum, contig.Item1, doc.ScoringModel);
-				con.spectrum = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
+				con.mdScore = ExtenderBase<int>.Scoring.GetSpectralSupportScore(asm);
 				con.origin = source;
 
 				res.Add(con);
@@ -224,14 +225,14 @@ namespace FabLab
 			);
 
             RankedContig[] resArray = res.ToArray();
-            if (doc.CurrentSettings.UseMultiScore)
-                resArray = GetMultiScore(doc, null, res);
+            if (doc.CurrentSettings.UseShotgunScore)
+                resArray = GetShotgunScore(doc, null, res);
                 
 
 			return Document.Reorder(resArray, new int[] { 3, 5 });
 		}
 
-		public static RankedContig[] GetMultiScore(Document doc, int[] multiScoreRange, IEnumerable<RankedContig> res)
+		public static RankedContig[] GetShotgunScore(Document doc, int[] shotgunScoreRange, IEnumerable<RankedContig> res)
 		{
 			if (!res.Any())
 			{
@@ -240,9 +241,9 @@ namespace FabLab
 
 			var contigsWithIndices = res.Select((x, i) => (x, i)).ToArray();
 
-			multiScoreRange = multiScoreRange ?? new int[] { 0, res.Select(x => x.contig.Length).Max() };
+			shotgunScoreRange = shotgunScoreRange ?? new int[] { 0, res.Select(x => x.contig.Length).Max() };
 
-			var range = ((int)multiScoreRange[0], (int)multiScoreRange[1]);
+			var range = ((int)shotgunScoreRange[0], (int)shotgunScoreRange[1]);
             var numberedReads = doc.NumberedReads.Select(x => (x.read.Peptide, x.numbering)).ToList();
             var length = range.Item2 - range.Item1;
 			(double min, double max)[] imgt = res.Select(x =>
@@ -260,9 +261,10 @@ namespace FabLab
 			var readArray2 = doc.NumberedReads.Select(x => x.read).ToArray();
 			Dictionary<int, int> scores = new Dictionary<int, int>();
 
-			if (res.Count() > 1000)
+			//if (res.Count() > 1000)
+			if (false)
 			{
-				DialogResult dialogResult = MessageBox.Show($"Do you want to compute the multiscore for these {res.Count()} entries? This will take ~2 minutes per 1000 entries", "large number of contigs detected", MessageBoxButtons.YesNo);
+				DialogResult dialogResult = MessageBox.Show($"Do you want to compute the shotgun score for these {res.Count()} entries? This will take ~2 minutes per 1000 entries", "large number of contigs detected", MessageBoxButtons.YesNo);
 				if (dialogResult == DialogResult.Yes)
 				{
 				}
@@ -355,15 +357,15 @@ namespace FabLab
 
 				keyBag.Add(key);
 
-				lock (doc.MultiScores)
+				lock (doc.ShotgunScores)
 				{
-					if (doc.MultiScores.ContainsKey(key))
+					if (doc.ShotgunScores.ContainsKey(key))
 					{
 						lock (scores)
 						{
 							if (!scores.ContainsKey(item.i))
 							{
-								scores.Add(item.i, Coverage.ScoreSequence(doc.MultiScores[key]));
+								scores.Add(item.i, Coverage.ScoreSequence(doc.ShotgunScores[key]));
 							}
 						}
 						return;
@@ -373,18 +375,18 @@ namespace FabLab
                 
                 var innerNumberedReads = doc.CurrentSettings.RenumberAllFullLengthContigs ? doc.ReadFilter.GetNumberingAndAlignmentForReadsDynamicProgramming(readArray2, template.contig).Select(x => (x.read.Peptide, x.numbering)).ToList() : numberedReads; 
                 
-				var score = FabLabForm.GetMultiSupportScore((key, numbers), innerNumberedReads.ToArray(), tolerance: 7);
+				var score = FabLabForm.GetShotgunSupportScore((key, numbers), innerNumberedReads.ToArray(), tolerance: 7);
 
-				lock (doc.MultiScores)
+				lock (doc.ShotgunScores)
 				{
-					if (!doc.MultiScores.ContainsKey(key))
-						doc.MultiScores.Add(key, score);
+					if (!doc.ShotgunScores.ContainsKey(key))
+						doc.ShotgunScores.Add(key, score);
 
 					lock (scores)
 					{
 						if (!scores.ContainsKey(item.i))
 						{
-							scores.Add(item.i, Coverage.ScoreSequence(doc.MultiScores[key]));
+							scores.Add(item.i, Coverage.ScoreSequence(doc.ShotgunScores[key]));
 						}
 					}
 				}
@@ -398,7 +400,7 @@ namespace FabLab
             var resArray = res.ToArray();
 			foreach (var item in scores)
 			{
-				resArray[item.Key].multi = item.Value;
+				resArray[item.Key].shotgun = item.Value;
 			}
 
 			return resArray;
@@ -408,7 +410,7 @@ namespace FabLab
 		{
 			//select start and end
 			int startIdx = 0;
-			var coverages = keyBag.Distinct().Select(x => doc.MultiScores[x]).ToArray();
+			var coverages = keyBag.Distinct().Select(x => doc.ShotgunScores[x]).ToArray();
 			int max = coverages.Select(x => x.Count).Min();
 
 			for (int j = 0; j < max; j++)
@@ -456,7 +458,7 @@ namespace FabLab
 			{
 				foreach (var key in keyBag)
 				{
-					doc.MultiScores[key] = doc.MultiScores[key].Skip(startIdx).Take((doc.MultiScores[key].Count - endSkip) - startIdx).ToList();
+					doc.ShotgunScores[key] = doc.ShotgunScores[key].Skip(startIdx).Take((doc.ShotgunScores[key].Count - endSkip) - startIdx).ToList();
 				}
 			}
 		}
@@ -908,26 +910,6 @@ namespace FabLab
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
-        public static (double, double) GetBorders(ImgtFilterLib.Enums.RegionEnum type, ImgtFilterLib.Enums.AbDataBaseEnum chain)
-        {
-            switch (chain)
-            {
-                case ImgtFilterLib.Enums.AbDataBaseEnum.HeavyChainSequences:
-                    return GetBorders(type, ImgtFilterLib.Enums.AbType.Heavy);
-                case ImgtFilterLib.Enums.AbDataBaseEnum.LightChainSequencesKappa:
-                    return GetBorders(type, ImgtFilterLib.Enums.AbType.Light);
-                case ImgtFilterLib.Enums.AbDataBaseEnum.LightChainSequencesLambda:
-                    return GetBorders(type, ImgtFilterLib.Enums.AbType.Light);
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-
-        /// <summary>
-        /// Get the borders of this region, i.e. first and last imngt number
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
         public static (double, double) GetBorders(ImgtFilterLib.Enums.RegionEnum type, ImgtFilterLib.LociEnum chain)
         {
             switch (chain)
@@ -1047,26 +1029,27 @@ namespace FabLab
             }
         }
 
-        public static int GetCdrIdx(RegionType region)
+        public static void WritePeptidesToProforma(Peptide[] contigs, string fileName)
         {
-            switch (region)
+            using (StreamWriter file =
+                new StreamWriter(fileName))
             {
-                case RegionType.FR1:
-                    return -1;
-                case RegionType.CDR1:
-                    return 0;
-                case RegionType.FR2:
-                    return -1;
-                case RegionType.CDR2:
-                    return 1;
-                case RegionType.FR3:
-                    return -1;
-                case RegionType.CDR3:
-                    return 2;
-                case RegionType.FR4:
-                    return -1;
-                default:
-                    throw new NotImplementedException("unimplemented enum");
+                string name = Path.GetFileNameWithoutExtension(fileName);
+                int i = 0;
+
+                foreach (var contig in contigs)
+                {
+                    file.WriteLine($">{name}_{i}");
+
+                    StringBuilder builder = new StringBuilder();
+                    var nterm = contig.Nterm == null ? 0 : contig.Nterm.Delta;
+                    var cterm = contig.Cterm == null ? 0 : contig.Cterm.Delta;
+                    builder.Append($"[{nterm}]_");
+                    builder.Append($"{contig.Sequence}");
+                    builder.Append($"_[{cterm}]");
+                    file.WriteLine(builder);
+                    i++;
+                }
             }
         }
     }

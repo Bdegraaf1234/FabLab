@@ -35,7 +35,7 @@ namespace FabLab
 		#region Data
 
 		public Dictionary<((string, double[]), RegionType), char[]> GappedSequences = new Dictionary<((string, double[]), RegionType), char[]>();
-		public Dictionary<string, List<List<Coverage>>> MultiScores { get => Document.MultiScores; }
+		public Dictionary<string, List<List<Coverage>>> ShotgunScores { get => Document.ShotgunScores; }
 		public Document Document;
 
 		private Document.Settings _settings = new Document.Settings();
@@ -59,7 +59,7 @@ namespace FabLab
 		private readonly Color TemplateColor = Color.FromArgb(255, 115, 90);
 		private readonly Color SpectrumColor = Color.FromArgb(171, 221, 164);
 		private readonly Color ConservedColor = Color.FromArgb(43, 131, 186);
-		private readonly Color MultiColor = Color.FromArgb(240, 163, 255);
+		private readonly Color ShotgunColor = Color.FromArgb(240, 163, 255);
 		// ACDEFGHIKLMNPQRSTUVWYX
 		// http://yulab-smu.top/ggmsa/articles/guides/Color_schemes_And_Font_Families.html#color-by-letter-1
 		private readonly Color[] aaColorScheme = new Color[]
@@ -482,7 +482,7 @@ namespace FabLab
 			}
 		}
 
-		private void ShowMultiScoreForAll(object sender, EventArgs e)
+		private void ShowShotgunScoreForAll(object sender, EventArgs e)
 		{
 			try
 			{
@@ -492,7 +492,7 @@ namespace FabLab
 
 				RankedContig[] rankedContigs = olv.FilteredObjects.Cast<RankedContig>().ToArray();
 				var range = OLVDoublePrompt.ShowDialog(0, rankedContigs.Select(x => x.contig.Length).Max()).Select(x => (int)x).ToArray();
-				var ranked = Helpers.RankFullLength(rankedContigs.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document, Document.Locus, range);
+				var ranked = Helpers.RankFullLength(rankedContigs.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document);
 				ShowPredictionsView(ranked, range);
 			}
 			catch (Exception er)
@@ -596,7 +596,7 @@ namespace FabLab
 			RankedContig[] contigs = GetSessionClippedContigs(curRegion);
 
 			var varsToOrderOn = Document.CurrentSettings.OrderingVars[curRegion];
-			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseMultiScore)
+			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseShotgunScore)
 			{
 				var l = varsToOrderOn.ToList();
 				l.Add(1);
@@ -706,7 +706,7 @@ namespace FabLab
 			olv.AllColumns.Last().IsVisible = false;
 			Helpers.CreateColumn(olv, "Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return Math.Round((double)((RankedContig)obj).spectrum, 3);
+				return Math.Round((double)((RankedContig)obj).mdScore, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
@@ -714,27 +714,27 @@ namespace FabLab
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			Helpers.CreateColumn(olv, "# Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return ((RankedContig)obj).spectrumR;
+				return ((RankedContig)obj).mdR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.CreateColumn(olv, "K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Shotgun", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return ((RankedContig)obj).multi;
+				return ((RankedContig)obj).shotgun;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
-			hfs.SetBackColor(MultiColor);
+			hfs.SetBackColor(ShotgunColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.CreateColumn(olv, "# K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Shotgun", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return ((RankedContig)obj).multiR;
+				return ((RankedContig)obj).shotgunR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			olv.AllColumns.Last().IsVisible = addNterm;
 			hfs = new HeaderFormatStyle();
-			hfs.SetBackColor(MultiColor);
+			hfs.SetBackColor(ShotgunColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			Helpers.CreateColumn(olv, "Germline", HorizontalAlignment.Left, delegate (Object obj)
 			{
@@ -847,31 +847,31 @@ namespace FabLab
 			olv.AllColumns.Last().IsVisible = false;
 			Helpers.CreateColumn(olv, "Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return Math.Round((double)((RankedContig)obj).spectrum, 3);
+				return Math.Round((double)((RankedContig)obj).mdScore, 3);
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			Helpers.CreateColumn(olv, "# Spectrum", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return ((RankedContig)obj).spectrumR;
+				return ((RankedContig)obj).mdR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
 			hfs.SetBackColor(SpectrumColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.CreateColumn(olv, "K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "Shotgun", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return ((RankedContig)obj).multi;
+				return ((RankedContig)obj).shotgun;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
-			hfs.SetBackColor(MultiColor);
+			hfs.SetBackColor(ShotgunColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
-			Helpers.CreateColumn(olv, "# K-mer", HorizontalAlignment.Left, delegate (Object obj)
+			Helpers.CreateColumn(olv, "# Shotgun", HorizontalAlignment.Left, delegate (Object obj)
 			{
-				return ((RankedContig)obj).multiR;
+				return ((RankedContig)obj).shotgunR;
 			}, sortable: true, customFilterMenuBuilder: new RangeFilterMenuBuilder(), objectsToBe: objectsToBe);
 			hfs = new HeaderFormatStyle();
-			hfs.SetBackColor(MultiColor);
+			hfs.SetBackColor(ShotgunColor);
 			olv.AllColumns.Last().HeaderFormatStyle = hfs;
 			Helpers.CreateColumn(olv, "Germline", HorizontalAlignment.Left, delegate (Object obj)
 			{
@@ -906,7 +906,7 @@ namespace FabLab
 			// get the objects
 			RankedContig[] contigs = GetSessionClippedContigs(curRegion);
 			var varsToOrderOn = Document.CurrentSettings.OrderingVars[curRegion];
-			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseMultiScore)
+			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseShotgunScore)
 			{
 				var l = varsToOrderOn.ToList();
 				l.Add(1);
@@ -1001,7 +1001,7 @@ namespace FabLab
 			RankedContig[] contigs = GetSessionClippedContigs(curRegion);
 
 			var varsToOrderOn = Document.CurrentSettings.OrderingVars[curRegion];
-			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseMultiScore)
+			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseShotgunScore)
 			{
 				var l = varsToOrderOn.ToList();
 				l.Add(1);
@@ -1435,10 +1435,10 @@ namespace FabLab
 			double peaksMin = contigs.Select(x => x.peaks).Min();
 			double templateMax = contigs.Select(x => x.template).Max();
 			double templateMin = contigs.Select(x => x.template).Min();
-			double spectrumMax = contigs.Select(x => x.spectrum).Max();
-			double spectrumMin = contigs.Select(x => x.spectrum).Min();
-			double multiMax = contigs.Select(x => x.multi).Max();
-			double multiMin = contigs.Select(x => x.multiR).Min();
+			double spectrumMax = contigs.Select(x => x.mdScore).Max();
+			double spectrumMin = contigs.Select(x => x.mdScore).Min();
+			double shotgunMax = contigs.Select(x => x.shotgun).Max();
+			double shotgunMin = contigs.Select(x => x.shotgunR).Min();
 			double conservedMax = contigs.Select(x => -Math.Log10(x.conservedness)).Max();
 			double conservedMin = contigs.Select(x => -Math.Log10(x.conservedness)).Min();
 
@@ -1476,10 +1476,10 @@ namespace FabLab
 				Legend = LegendName,
 				IsVisibleInLegend = true
 			};
-			Series multi = new Series($"Multi ({Math.Round(multiMin, 3)} - {Math.Round(multiMax, 3)})")
+			Series shotgun = new Series($"Shotgun ({Math.Round(shotgunMin, 3)} - {Math.Round(shotgunMax, 3)})")
 			{
 				ChartType = SeriesChartType.Point,
-				Color = MultiColor,
+				Color = ShotgunColor,
 				Legend = LegendName,
 				IsVisibleInLegend = true
 			};
@@ -1501,10 +1501,10 @@ namespace FabLab
 				peaks.Points.Last().ToolTip = "peaks: " + (peaks.Points.Last().YValues.First() * (peaksMax - peaksMin) + peaksMin).ToString();
 				template.Points.AddXY(i, (contig.template - templateMin) / (templateMax - templateMin));
 				template.Points.Last().ToolTip = "template: " + (template.Points.Last().YValues.First() * (templateMax - templateMin) + templateMin).ToString();
-				spectrum.Points.AddXY(i, (contig.spectrum - spectrumMin) / (spectrumMax - spectrumMin));
+				spectrum.Points.AddXY(i, (contig.mdScore - spectrumMin) / (spectrumMax - spectrumMin));
 				spectrum.Points.Last().ToolTip = "spectrum score: " + (spectrum.Points.Last().YValues.First() * (spectrumMax - spectrumMin) + spectrumMin).ToString();
-				multi.Points.AddXY(i, (contig.multi - multiMin) / (multiMax - multiMin));
-				multi.Points.Last().ToolTip = "multi score: " + (multi.Points.Last().YValues.First() * (multiMax - multiMin) + multiMin).ToString();
+				shotgun.Points.AddXY(i, (contig.shotgun - shotgunMin) / (shotgunMax - shotgunMin));
+				shotgun.Points.Last().ToolTip = "shotgun score: " + (shotgun.Points.Last().YValues.First() * (shotgunMax - shotgunMin) + shotgunMin).ToString();
 				conserved.Points.AddXY(i, (-Math.Log10(contig.conservedness) - conservedMin) / (conservedMax - conservedMin));
 				conserved.Points.Last().ToolTip = "-log10 conservedness: " + (conserved.Points.Last().YValues.First() * (conservedMax - conservedMin) + conservedMin).ToString();
 				if (isFullLength)
@@ -1517,7 +1517,7 @@ namespace FabLab
 			chart.Series.Add(template);
 			chart.Series.Add(spectrum);
 			chart.Series.Add(conserved);
-			chart.Series.Add(multi);
+			chart.Series.Add(shotgun);
 
 			if (isFullLength)
 				chart.Series.Add(massDelta);
@@ -1535,7 +1535,7 @@ namespace FabLab
 			chart.ChartAreas.Clear();
 			chart.Legends.Clear();
 			chart.Series.Clear();
-			a.AxisY.Minimum = contigs.Select(x => x.multi).Min();
+			a.AxisY.Minimum = contigs.Select(x => x.shotgun).Min();
 
 			chart.ChartAreas.Add(a);// Create a new legend called "Legend2".
 			chart.Legends.Add(new Legend(LegendName));
@@ -1563,12 +1563,12 @@ namespace FabLab
 			};
 
 			chart.ChartAreas[0].AxisX.Title = "Spectrum";
-			chart.ChartAreas[0].AxisY.Title = "K-mer";
+			chart.ChartAreas[0].AxisY.Title = "Shotgun";
 
 			foreach (var contig in contigs)
 			{
-				massDelta.Points.AddXY((int)contig.spectrum, contig.multi);
-				massDelta.Points.Last().ToolTip = $"kmer#{contig.multiR}: {massDelta.Points.Last().YValues.First()} || Spectrum#{contig.spectrumR}: {massDelta.Points.Last().XValue} \n\n#{i}: {contig.contig.Sequence}";
+				massDelta.Points.AddXY((int)contig.mdScore, contig.shotgun);
+				massDelta.Points.Last().ToolTip = $"Shotgun#{contig.shotgunR}: {massDelta.Points.Last().YValues.First()} || Spectrum#{contig.mdR}: {massDelta.Points.Last().XValue} \n\n#{i}: {contig.contig.Sequence}";
 				i++;
 				if (i < 5)
 				{
@@ -1830,7 +1830,7 @@ namespace FabLab
 			}).ToArray();
 			var range = OLVDoublePrompt.ShowDialog(0, viableCombos2.Select(x => x.seq.Length).Max()).Select(x => (int)x).ToArray();
 
-			var ranked = Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document, Document.Locus, range);
+			var ranked = Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document);
 			Document.Predictions = ranked;
 			if (ranked.Where(x => x.contig == null).Any())
 			{
@@ -1839,7 +1839,7 @@ namespace FabLab
 				var minRank = empty.Select(x => x.sumR).Min();
 				foreach (var item in empty)
 				{
-					Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.spectrum}");
+					Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.mdScore}");
 				}
 				MessageBox.Show($"Found and discarded empty contigs (N = {c}, minrank = {minRank})");
 				Document.Predictions = ranked.Where(x => x.contig != null).ToArray();
@@ -1968,7 +1968,7 @@ namespace FabLab
 			}).ToArray();
 			var range = OLVDoublePrompt.ShowDialog(0, viableCombos2.Select(x => x.seq.Length).Max()).Select(x => (int)x).ToArray();
 
-			var ranked = Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document, Document.Locus, range);
+			var ranked = Helpers.RankFullLength(viableCombos2, SequenceSource.Contig, Document);
 
 			if (ranked.Where(x => x.contig == null).Any())
 			{
@@ -1977,7 +1977,7 @@ namespace FabLab
 				var minRank = empty.Select(x => x.sumR).Min();
 				foreach (var item in empty)
 				{
-					Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.spectrum}");
+					Debug.WriteLine($"Sumr: {item.sumR}, peaksScore: {item.peaks}, spectrumScore: {item.mdScore}");
 				}
 				MessageBox.Show($"Found and discarded empty contigs (N = {c}, minrank = {minRank})");
 				ranked = ranked.Where(x => x.contig != null).ToArray();
@@ -2044,7 +2044,7 @@ namespace FabLab
 			contigs = contigs.Where(x => sourcesToDisplay.Contains(x.origin)).ToArray();
 
 			var varsToOrderOn = Document.CurrentSettings.OrderingVars[curRegion];
-			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseMultiScore)
+			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseShotgunScore)
 			{
 				var l = varsToOrderOn.ToList();
 				l.Add(1);
@@ -2069,7 +2069,7 @@ namespace FabLab
 			contigs = contigs.Where(x => sourcesToDisplay.Contains(x.origin)).ToArray();
 
 			var varsToOrderOn = Document.CurrentSettings.OrderingVars[curRegion];
-			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseMultiScore)
+			if (varsToOrderOn.Contains(5) && !Document.CurrentSettings.UseShotgunScore)
 			{
 				var l = varsToOrderOn.ToList();
 				l.Add(1);
@@ -2115,7 +2115,7 @@ namespace FabLab
 			DrawConsensusChart(consensus, numbering, sequence, chart);
 		}
 
-		private void DrawMultiSupportChart(RegionType curRegion)
+		private void DrawShotgunSupportChart(RegionType curRegion)
 		{
 			if (Document.CurrentPrediction.Sequence == "")
 			{
@@ -2174,10 +2174,10 @@ namespace FabLab
 				GetConsensusContig(curRegion, out numbering, out sequence);
 			}
 
-			var chart = GetContigMultiChart(curRegion);
+			var chart = GetContigShotgunChart(curRegion);
 			try
 			{
-				DrawMultiChart(GetMultiSupportScore((sequence.Replace('I', 'L')
+				DrawShotgunChart(GetShotgunSupportScore((sequence.Replace('I', 'L')
 					//.Replace("Q", "K")
 					, numbering), numbered), numbering, sequence, chart);
 			}
@@ -2187,7 +2187,7 @@ namespace FabLab
 			}
 		}
 
-		public static List<List<Coverage>> GetMultiSupportScore((string sequence, double[] numbering) target, (string sequence, double[] numbering)[] reads, int tolerance = 7)
+		public static List<List<Coverage>> GetShotgunSupportScore((string sequence, double[] numbering) target, (string sequence, double[] numbering)[] reads, int tolerance = 7)
 		{
 
 			// one point per residue per hit. a residue in a subseq of 5 gets 5 + 4 + 3 + 2 + 1 points
@@ -2392,7 +2392,7 @@ namespace FabLab
 			}
 		}
 
-		private void DrawMultiChart(List<List<Coverage>> coverages, double[] numbering, string sequence, Chart chart)
+		private void DrawShotgunChart(List<List<Coverage>> coverages, double[] numbering, string sequence, Chart chart)
 		{
 			chart.ChartAreas.Clear();
 			chart.Series.Clear();
@@ -2531,7 +2531,7 @@ namespace FabLab
 			{
 				chart.ChartAreas.Clear();
 				chart.Series.Clear();
-				Log.Logger.Log(NLog.LogLevel.Trace, $"Could not draw multichart support chart. Error: {err.Message}");
+				Log.Logger.Log(NLog.LogLevel.Trace, $"Could not draw shotgun support chart support chart. Error: {err.Message}");
 			}
 
 			void biggerIcons(Chart chart1, Series series)
@@ -2727,7 +2727,7 @@ namespace FabLab
 			return contigCharts[curRegion][3];
 		}
 
-		private Chart GetContigMultiChart(RegionType curRegion)
+		private Chart GetContigShotgunChart(RegionType curRegion)
 		{
 			return contigCharts[curRegion][4];
 		}
@@ -2886,7 +2886,7 @@ namespace FabLab
 				if (curRegion == RegionType.None)
 					continue;
 
-				DrawMultiSupportChart(curRegion);
+				DrawShotgunSupportChart(curRegion);
 				DrawPeaksSupportChart(curRegion);
 				DrawTemplateSupportChart(curRegion);
 				DrawSpectrumSupportChart(curRegion);
@@ -3088,7 +3088,7 @@ namespace FabLab
 
 			icm.MenuItems.Add("Analyze");
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Recombine adjacent checked candidates", new EventHandler(RecombineAdjacent));
-			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Rescore all shown candidates for this region", new EventHandler(ShowMultiScoreForAll));
+			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Rescore all shown candidates for this region", new EventHandler(ShowShotgunScoreForAll));
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Refine (I/L) all shown predictions", new EventHandler(RefineAll));
 
 			icm.MenuItems.Add("View");
@@ -3137,32 +3137,14 @@ namespace FabLab
 					DefaultExt = ".proforma",
 				};
 
-				var contigs = olv.FilteredObjects.Cast<RankedContig>().ToArray();
+				var contigs = olv.FilteredObjects.Cast<RankedContig>().Select(x => x.contig).ToArray();
 
 				if (sfd.ShowDialog() == DialogResult.OK)
 				{
+					string fileName = sfd.FileName;
 					try
 					{
-						using (StreamWriter file =
-							new StreamWriter(sfd.FileName))
-						{
-							string name = Path.GetFileNameWithoutExtension(sfd.FileName);
-							int i = 0;
-
-							foreach (var contig in contigs)
-							{
-								file.WriteLine($">{name}_{i}");
-
-								StringBuilder builder = new StringBuilder();
-								var nterm = contig.contig.Nterm == null ? 0 : contig.contig.Nterm.Delta;
-								var cterm = contig.contig.Cterm == null ? 0 : contig.contig.Cterm.Delta;
-								builder.Append($"[{nterm}]_");
-								builder.Append($"{contig.contig.Sequence}");
-								builder.Append($"_[{cterm}]");
-								file.WriteLine(builder);
-								i++;
-							}
-						}
+						Helpers.WritePeptidesToProforma(contigs, fileName);
 					}
 					catch (Exception e2)
 					{
@@ -3175,6 +3157,8 @@ namespace FabLab
 				MessageBox.Show($"an error occured: {er.Message}");
 			}
 		}
+
+
 
 		private void SelectContigForPrediction(object sender, EventArgs e)
 		{
@@ -3221,7 +3205,7 @@ namespace FabLab
 					FillContigandScoreViews(reg);
 
 					DrawPeaksSupportChart(reg);
-					DrawMultiSupportChart(reg);
+					DrawShotgunSupportChart(reg);
 					DrawTemplateSupportChart(reg);
 					DrawSpectrumSupportChart(reg);
 					DrawConservationSupportChart(reg);
@@ -3346,7 +3330,7 @@ namespace FabLab
 				tc.TabPages.Add(new TabPage("Template"));
 				tc.TabPages.Add(new TabPage("Spectrum"));
 				tc.TabPages.Add(new TabPage("Conservation"));
-				tc.TabPages.Add(new TabPage("Multi"));
+				tc.TabPages.Add(new TabPage("Shotgun"));
 
 				List<Chart> cList = new List<Chart>(4);
 				foreach (var tabPage in tc.TabPages)
@@ -3547,7 +3531,7 @@ namespace FabLab
 				Dock = DockStyle.Fill
 			};
 			tc.TabPages.Add(new TabPage("BU vs MD"));
-			tc.TabPages.Add(new TabPage("Multi"));
+			tc.TabPages.Add(new TabPage("Shotgun"));
 			tc.TabPages.Add(new TabPage("Scatter"));
 
 			predictionOlv.Tag = (range[0], range[1], tc);
@@ -3598,7 +3582,7 @@ namespace FabLab
 				predictions[i].contig = predictions[i].contig.ShiftPeptideToOptimum(Document.Spectrum, Document.ScoringModel);
 			}
 
-			predictions = Helpers.RankFullLength(predictions.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document, Document.Locus, range);
+			predictions = Helpers.RankFullLength(predictions.Select(x => (x.contig, x.numbering)).ToArray(), SequenceSource.Contig, Document);
 
 			ShowPredictionsView(predictions, range, "Refined predictions");
 		}
@@ -3607,8 +3591,8 @@ namespace FabLab
 		{
 			ObjectListView olv = ((ObjectListView)sender);
 			RankedContig item = new RankedContig();
-			var multiScoreRange = ((int, int, TabControl))olv.Tag;
-			var chart = ControlsWithDockedCharts[multiScoreRange.Item3.TabPages[1]];
+			var shotgunScoreRange = ((int, int, TabControl))olv.Tag;
+			var chart = ControlsWithDockedCharts[shotgunScoreRange.Item3.TabPages[1]];
 			try
 			{
 				//if (olv.FocusedObject != null)
@@ -3628,13 +3612,13 @@ namespace FabLab
 				return;
 			}
 
-			var length = multiScoreRange.Item2 - multiScoreRange.Item1;
+			var length = shotgunScoreRange.Item2 - shotgunScoreRange.Item1;
 
 			(double min, double max)[] imgt = olv.FilteredObjects.Cast<RankedContig>().Select(x =>
 			{
 				var nums = x.numbering;
 				if (length <= x.contig.Sequence.Length)
-					nums = x.numbering.Skip(multiScoreRange.Item1).Take(length).ToArray();
+					nums = x.numbering.Skip(shotgunScoreRange.Item1).Take(length).ToArray();
 				return (nums.Min(), nums.Max());
 			}).ToArray();
 
@@ -3655,7 +3639,7 @@ namespace FabLab
 			}
 			try
 			{
-				DrawMultiChart(MultiScores[seq.Replace('I', 'L')], numbers, seq, chart);
+				DrawShotgunChart(ShotgunScores[seq.Replace('I', 'L')], numbers, seq, chart);
 			}
 			catch (Exception)
 			{
