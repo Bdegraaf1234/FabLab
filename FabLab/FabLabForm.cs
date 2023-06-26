@@ -3079,7 +3079,8 @@ namespace FabLab
 
 			icm.MenuItems.Add("Select contig For prediction", new EventHandler(SelectContigForPrediction));
 			icm.MenuItems.Add("Check contig for recombination", new EventHandler(CheckContigBox));
-			icm.MenuItems.Add("Add Mutated variant of this contig", new EventHandler(AddMutatedVariant));
+			icm.MenuItems.Add("Check all shown contigs for recombination", new EventHandler(CheckAllContigs));
+			icm.MenuItems.Add("Uncheck all", new EventHandler(UncheckAllContigs));
 			//icm.MenuItems.Add("Exclude contig from analysis", new EventHandler(RemoveRead));
 
 			icm.MenuItems.Add("Write");
@@ -3087,15 +3088,54 @@ namespace FabLab
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Write all shown predictions to csv", new EventHandler(WriteAllToCsv));
 
 			icm.MenuItems.Add("Analyze");
+			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Show Annotated spectrum", new EventHandler(ShowSpectrumViewContig));
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Recombine adjacent checked candidates", new EventHandler(RecombineAdjacent));
 			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Rescore all shown candidates for this region", new EventHandler(ShowShotgunScoreForAll));
-			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Refine (I/L) all shown predictions", new EventHandler(RefineAll));
+			//icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Refine (I/L) all shown predictions", new EventHandler(RefineAll));
 
-			icm.MenuItems.Add("View");
-			icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Show Annotated spectrum", new EventHandler(ShowSpectrumViewContig));
+			//icm.MenuItems.Add("View");
 			//icm.MenuItems[icm.MenuItems.Count - 1].MenuItems.Add("Show Read Coverage", new EventHandler(ShowReadCoverageViewContig));
 
 			return icm;
+		}
+
+		private void CheckAllContigs(object sender, EventArgs e)
+		{
+			try
+			{
+				var cm = (MenuItem)sender;
+				var olv = (ObjectListView)cm.GetContextMenu().SourceControl;
+				var item = (RankedContig)cm.GetContextMenu().Tag;
+
+				RegionType curRegion = (RegionType)olv.Tag;
+
+				var contigOlv = GetOlv(curRegion);
+				foreach (var contig in contigOlv.FilteredObjects)
+				{
+					contigOlv.CheckObject(contig);
+				}
+			}
+			catch (Exception er)
+			{
+				MessageBox.Show($"an error occured: {er.Message}");
+			}
+		}
+
+		private void UncheckAllContigs(object sender, EventArgs e)
+		{
+			try
+			{
+				var cm = (MenuItem)sender;
+				var olv = (ObjectListView)cm.GetContextMenu().SourceControl;
+				RegionType curRegion = (RegionType)olv.Tag;
+
+				var contigOlv = GetOlv(curRegion);
+				contigOlv.UncheckAll();
+			}
+			catch (Exception er)
+			{
+				MessageBox.Show($"an error occured: {er.Message}");
+			}
 		}
 
 		private void WriteAllToCsv(object sender, EventArgs e)
