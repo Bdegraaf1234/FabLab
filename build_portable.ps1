@@ -7,19 +7,21 @@
 # After FabLab.csproj is built, all non-system dlls in the output folder are copied to .\NugetBuilder\folder for packing
 # when dependencies.csproj is built directly afterwards, these dlls are packed into a nuget (name: dependencies, version taken from dependencies.csproj)
 # this nuget ends up in the .\nuget
+dotnet restore /p:configuration=local
 dotnet clean /p:configuration=local
 dotnet nuget locals all --clear
 dotnet restore /p:configuration=local
 Remove-Item nuget\*
 dotnet build /p:configuration=local
 
-# we then clear the chache again, just to be sure
+# we then clear the cache again, just to be sure
 dotnet nuget locals all --clear
 
+Write-Host "Hi"
 
 # then we build the projects on release config. This builds only fablab.csproj, with the .\nuget folder as an additional restore source (defined in fablab.csproj)
 dotnet restore /p:configuration=release
 dotnet build /p:configuration=release
 
-# forn convenience, we restore local again
+# for convenience, we restore local again
 dotnet restore /p:configuration=local

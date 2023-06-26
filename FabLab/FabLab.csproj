@@ -5,7 +5,7 @@
 		<AssemblyTitle>FabLab</AssemblyTitle>
 		<Product>FabLab</Product>
 		<UseWindowsForms>true</UseWindowsForms>
-		<TargetFramework>net4.8</TargetFramework>
+		<TargetFramework>net48</TargetFramework>
 		<Copyright>Copyright ©  2023</Copyright>
 		<Configurations>Debug;Release;Local</Configurations>
 		<ApplicationIcon>icon_fablab.ico</ApplicationIcon>
@@ -13,8 +13,6 @@
 		<GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
 
 		<GenerateAssemblyInfo>False</GenerateAssemblyInfo>
-
-		<Version>0.1</Version>
 		<Deterministic>false</Deterministic>
 	</PropertyGroup>
 	
@@ -32,11 +30,6 @@
 		<AdditionalFiles Include="stylecop.json" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="GenDictEdit" Version="1.1.0" />
-		<PackageReference Include="iTextSharp" Version="5.5.13.2" />
-		<PackageReference Include="System.Resources.Extensions" Version="6.0.0" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<Reference Include="System.Deployment" />
@@ -46,10 +39,17 @@
 			<HintPath>..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\System.Windows.Forms.DataVisualization.dll</HintPath>
 		</Reference>
 	</ItemGroup>
+	<ItemGroup>
+	</ItemGroup>
 
 	<Choose>
 		<When Condition="'$(Configuration)'=='Local' or '$(Configuration)'=='LocalCi'">
 			<ItemGroup>
+			</ItemGroup>
+			<ItemGroup>
+				<PackageReference Include="System.Resources.Extensions" Version="6.0.0" />
+				<PackageReference Include="GenDictEdit" Version="1.1.0" />
+				<PackageReference Include="iTextSharp" Version="5.5.13.2" />
 				<ProjectReference Include="..\..\hecklib-graphics\Source\hecklib-graphics\hecklib-graphics.csproj" />
 				<ProjectReference Include="..\..\hecklib-win32\Source\hecklibWin32\hecklib-win32.csproj" />
 				<ProjectReference Include="..\..\PsrmUtils\Source\PsrmLib\PsrmLib.csproj" />
@@ -58,10 +58,10 @@
 		</When>
 		<Otherwise>
 			<PropertyGroup>
-				<RestoreSources>$(ProjectDir)dll\</RestoreSources>
+				<RestoreSources>https://api.nuget.org/v3/index.json;$(ProjectDir)..\nuget\</RestoreSources>
 			</PropertyGroup>
 			<ItemGroup>
-				<PackageReference Include="dependencies" Version="1.8" />
+				<PackageReference Include="dependencies" Version="1.1.*" />
 			</ItemGroup>
 		</Otherwise>
 	</Choose>
@@ -106,5 +106,13 @@
 		  <DependentUpon>Resources.resx</DependentUpon>
 		</Compile>
 	</ItemGroup>
-	
+
+	<Target Name="CopyDlls" AfterTargets="Build">
+		<ItemGroup Condition="'$(Configuration)'=='Local' or '$(Configuration)'=='LocalCi'">
+			<ToCopy Include="$(OutputPath)*.dll"/>
+		</ItemGroup>
+		<Copy SourceFiles="@(ToCopy)"
+		  DestinationFolder="$(ProjectDir)..\NugetBuilder\dll" ></Copy>
+	</Target>
+
 </Project>

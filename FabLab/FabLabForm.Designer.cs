@@ -36,7 +36,6 @@ namespace FabLab
 			this.loadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.fromPathsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.fromInputClassToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.fromSavedResultsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.saveInputAsGenericFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.repopulateCdrToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -143,8 +142,7 @@ namespace FabLab
 			// 
 			this.loadToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fromPathsToolStripMenuItem,
-            this.fromInputClassToolStripMenuItem,
-            this.fromSavedResultsToolStripMenuItem});
+            this.fromInputClassToolStripMenuItem});
 			this.loadToolStripMenuItem.Name = "loadToolStripMenuItem";
 			this.loadToolStripMenuItem.Size = new System.Drawing.Size(283, 22);
 			this.loadToolStripMenuItem.Text = "Load";
@@ -152,23 +150,16 @@ namespace FabLab
 			// fromPathsToolStripMenuItem
 			// 
 			this.fromPathsToolStripMenuItem.Name = "fromPathsToolStripMenuItem";
-			this.fromPathsToolStripMenuItem.Size = new System.Drawing.Size(172, 22);
+			this.fromPathsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
 			this.fromPathsToolStripMenuItem.Text = "From generic files";
 			this.fromPathsToolStripMenuItem.Click += new System.EventHandler(this.fromPathsToolStripMenuItem_Click);
 			// 
 			// fromInputClassToolStripMenuItem
 			// 
 			this.fromInputClassToolStripMenuItem.Name = "fromInputClassToolStripMenuItem";
-			this.fromInputClassToolStripMenuItem.Size = new System.Drawing.Size(172, 22);
+			this.fromInputClassToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
 			this.fromInputClassToolStripMenuItem.Text = "From config file";
 			this.fromInputClassToolStripMenuItem.Click += new System.EventHandler(this.fromInputClassToolStripMenuItem_Click);
-			// 
-			// fromSavedResultsToolStripMenuItem
-			// 
-			this.fromSavedResultsToolStripMenuItem.Name = "fromSavedResultsToolStripMenuItem";
-			this.fromSavedResultsToolStripMenuItem.Size = new System.Drawing.Size(172, 22);
-			this.fromSavedResultsToolStripMenuItem.Text = "From saved results";
-			this.fromSavedResultsToolStripMenuItem.Click += new System.EventHandler(this.fromSavedResultsToolStripMenuItem_Click);
 			// 
 			// saveToolStripMenuItem
 			// 
@@ -580,7 +571,6 @@ namespace FabLab
         private System.Windows.Forms.SplitContainer splitContainer14;
 		private System.Windows.Forms.ToolStripMenuItem fromPathsToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem fromInputClassToolStripMenuItem;
-		private System.Windows.Forms.ToolStripMenuItem fromSavedResultsToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem saveInputAsGenericFilesToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem outputAllCsvsToolStripMenuItem;
 	}
