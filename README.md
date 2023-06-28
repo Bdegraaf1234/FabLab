@@ -8,7 +8,7 @@ Download and run the latest installer (```fablab_installer.exe```) from the [rel
 To build FabLab from source, download the source code for FabLab using git clone.
 
 ```
-git clone https://github.com/Bdegraaf1234/FabLabPublic.git
+git clone https://github.com/Bdegraaf1234/FabLab.git
 ```
 
 The project is built using dotnet (.NET Framework 4.8) and development is done on Windows using [visual studio](https://visualstudio.microsoft.com/downloads/). To build the project, install [dotnet](https://dotnet.microsoft.com/download) and enter the following commands into your terminal from the root folder of this repository, ```FabLabPublic/```.
