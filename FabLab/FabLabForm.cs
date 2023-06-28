@@ -117,6 +117,7 @@ namespace FabLab
 		{
 			InitializeComponent();
 			Initialize();
+
 			if (path != null)
 			{
 				Document = Document.LoadFromInputClassPath(path, Settings);

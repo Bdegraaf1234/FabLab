@@ -436,14 +436,19 @@ namespace FabLab
         public void ClipAndRank(Peptide[] inPep)
 		{
 			List<(string read, double[] numbering)> numbered = ReadFilter.GetNumberingAndAlignmentForReadsDynamicProgramming(inPep.Select(x => x.Sequence), Templates.First());
+            Log.Logger.Info($"numbered the germline templates according to the IMGT convention");
+
 
             var numberedPeps = numbered.Zip(inPep, (numbering, pep) => (pep, numbering.numbering)).ToList();
             var seqSource = SequenceSource.Contig;
 
             foreach (var region in Helpers.GetAllRegionEnums())
             {
+
                 if (region == RegionType.None)
                     continue;
+
+                Log.Logger.Info($"processing {Enum.GetName(typeof(RegionType), region)} contigs");
                 int toleranceForRenumbering = 2;
                 List<(Peptide clipped, double[] numbering)> clipped1 = ClipToRegion(numberedPeps, region, false, toleranceForRenumbering).Where(x => x.clipped.Length != 0).ToList();
 
@@ -483,9 +488,10 @@ namespace FabLab
 				{
 					ClippedContigs.Add(region, ranked);
 				}
-			}
+                Log.Logger.Info($"Added {ranked.Count()} contigs");
+            }
 
-			(Peptide x, double[])[] RemoveDuplicates(List<(Peptide clipped, double[] numbering)> contigs)
+            (Peptide x, double[])[] RemoveDuplicates(List<(Peptide clipped, double[] numbering)> contigs)
 			{
 				var noDups = PeptideExtender.RemoveDuplicatePeptides(contigs.Select(x => {
                     x.clipped.Name = "";
@@ -497,9 +503,12 @@ namespace FabLab
 
 			if (CurrentSettings.MedianShift)
 			{
+
                 var bestFr4 = ClippedContigs[RegionType.FR4].OrderByDescending(x => x.mdScore).First().contig;
+                Log.Logger.Info($"Shifting spectrum to account for systemic (relative) mass shifts using the constant region sequence provided ({bestFr4.Sequence})");
                 var asm = new AnnotatedSpectrumMatch(Spectrum, bestFr4, ScoringModel);
                 var relErrors = GatherErrorsAndCorrect(asm.FragmentMatches, Spectrum);
+                Log.Logger.Info($"Median error corrected from {relErrors.Average()} PPM to 0");
 
                 foreach (var region in Helpers.GetAllRegionEnums())
                 {
@@ -863,11 +872,13 @@ namespace FabLab
 
         public static Document LoadFromInputClassPath(string inputPath, Settings settings)
         {
+            Log.Logger.Debug($"Loading from file {inputPath}");
 			Input input = JsonUtils.Read<Input>(inputPath);
 			if (input.Root == string.Empty)
                 input.Root = Path.GetDirectoryName(inputPath);
-			
-            return LoadFromInputClass(input, settings);
+            var doc = LoadFromInputClass(input, settings);
+
+            return doc;
         }
 
         /// <summary>
@@ -894,8 +905,9 @@ namespace FabLab
 			try
 			{
                 templates = FastaIO.ReadFasta(input.TemplatePath).Select(x => new Peptide(x.Value, x.Key)).ToList();
-			}
-			catch (Exception e)
+                Log.Logger.Info($"Parsed germline templates");
+            }
+            catch (Exception e)
 			{
 
 				throw;
@@ -914,6 +926,7 @@ namespace FabLab
 			if (input.SpectrumPath.EndsWith("json"))
 			{
                 doc.Spectrum = JsonUtils.Read<SpectrumContainer>(input.SpectrumPath);
+                Log.Logger.Info($"Parsed spectrum with precursormass {doc.Spectrum.PrecursorMass}");
             }
             // spectrum should be mgf
 			else
@@ -922,6 +935,7 @@ namespace FabLab
                 doc.Spectrum = new SpectrumContainer(mgfFile.Values.First(), mgfFile.Keys.First());
                 DuplicateHanding.RemoveDuplicates(ref doc.Spectrum);
                 doc.Spectrum.Precursor.Fragmentation = HeckLib.masspec.Spectrum.FragmentationType.ETD;
+                Log.Logger.Info($"Parsed spectrum with precursormass {doc.Spectrum.PrecursorMass}");
             }
 			doc.FullContigs = new List<(Peptide Match, List<ExtenderBase<Peptide>.MetaData<int>>)>();
 			HeckLib.io.fasta.FastaParser.Parse(input.ContigPath, HeckLib.io.fasta.FastaParser.Format.PROFORMA, Modification.Parse(), delegate (string header, string sequence, Modification nterm, Modification cterm, Modification[] modifications, double localprogress, out bool cancel)
@@ -931,7 +945,9 @@ namespace FabLab
 				cancel = false;
 			});
 
-			AddConsensusToDoc(doc);
+            Log.Logger.Info($"Parsed {doc.FullContigs.Count} contigs");
+
+            AddConsensusToDoc(doc);
 
 			doc.ClipAndRank();
             doc.Title = input.Name;
@@ -944,13 +960,15 @@ namespace FabLab
 			var nums = consensus.Keys;
 			var orderedNums = Helpers.OrderImgtNumbering(nums);
 			doc.Consensus = orderedNums.Select(x => (x, consensus[x])).ToList();
-		}
 
-		/// <summary>
-		/// Load previously processed data
-		/// </summary>
-		/// <param name="fileName"></param>
-		/// <returns></returns>
+            Log.Logger.Info($"Bottom up read consensus (re)set");
+        }
+
+        /// <summary>
+        /// Load previously processed data
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <returns></returns>
         public static Document LoadProcessed(string fileName)
         {
             string writePath = Path.GetTempPath() + @"\fablab";
