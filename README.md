@@ -2,7 +2,7 @@
 Integrated LC-MS/MS-based de novo sequencing of antibody chains in complex mixtures
 
 ## Getting started
-Download and run the latest installer (```fablab_installer.exe```) from the [releases page](https://github.com/Bdegraaf1234/FabLabPublic/releases). FabLab is only compatible with windows as the graphical user interface (GUI) was built using Windows Forms.
+Download and run the latest installer (```fablab_installer.exe```) from the [releases page](https://github.com/Bdegraaf1234/FabLab/releases). FabLab is only compatible with windows as the graphical user interface (GUI) was built using Windows Forms.
 
 ## Building/Developing
 To build FabLab from source, download the source code for FabLab using git clone.
